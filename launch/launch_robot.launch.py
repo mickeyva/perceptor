@@ -105,6 +105,12 @@ def generate_launch_description():
         description='Enable MPU6050 IMU sensor for sensor fusion and improved odometry'
     )
 
+    enable_sensor_fusion_arg = DeclareLaunchArgument(
+        'enable_sensor_fusion',
+        default_value='true',
+        description='Enable sensor fusion (EKF) combining wheel odometry and IMU data'
+    )
+
     # Package name configuration
     # This must match the actual package name for proper resource location
     package_name = 'perceptor'
@@ -188,6 +194,17 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('enable_imu'))
     )
 
+    # Sensor Fusion (Optional)
+    # EKF-based fusion of wheel odometry and IMU data for improved localization
+    # Can be disabled with: enable_sensor_fusion:=false
+    # Dependencies: Requires both IMU sensor and robot base odometry
+    sensor_fusion = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([os.path.join(
+            get_package_share_directory(package_name), 'launch', 'sensor_fusion.launch.py'
+        )]),
+        condition=IfCondition(LaunchConfiguration('enable_sensor_fusion'))
+    )
+
     # Twist Multiplexer Configuration
     # Path to configuration file defining command source priorities and timeouts
     twist_mux_params = os.path.join(
@@ -222,7 +239,7 @@ def generate_launch_description():
         # Translation: 0,0,0.05 = center-mounted, 5cm above base_link
         # Rotation: 0,0,0 = aligned with robot coordinate system
         arguments=['0', '0', '0.1', '0', '0', '0', 'base_link', 'imu_link'],
-        condition=IfCondition(LaunchConfiguration('enable_imu'))  # Only launch if IMU enabled
+        condition=IfCondition(LaunchConfiguration('enable_sensor_fusion'))  # Only launch if IMU enabled
     )
 
     # Launch Description Assembly
@@ -233,6 +250,7 @@ def generate_launch_description():
         enable_lidar_arg,              # LiDAR enable/disable option
         enable_camera_arg,             # Camera enable/disable option
         enable_imu_arg,                # IMU enable/disable option
+        enable_sensor_fusion_arg,      # Sensor fusion enable/disable option
 
         # Core robot components
         rsp,                           # Robot state publisher (Create robot model)
@@ -245,6 +263,7 @@ def generate_launch_description():
         lidar,                         # RPLidar A1M8 laser scanner (conditional)
         camera,                        # USB camera (conditional)
         imu,                           # MPU6050 IMU sensor (conditional)
+        sensor_fusion,                 # EKF sensor fusion (conditional)
 
         # Note: Visualization tools run on host computer:
         # - RViz: ros2 run rviz2 rviz2 -d src/perceptor/config/main.rviz

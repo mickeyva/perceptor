@@ -28,6 +28,7 @@
   <depend>twist_mux</depend>
   <depend>rplidar_ros</depend>
   <depend>ros2_mpu6050</depend>
+  <depend>robot_localization</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

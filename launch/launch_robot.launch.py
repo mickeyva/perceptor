@@ -24,11 +24,13 @@ Key components launched:
 4. Nintendo Pro Controller: Bluetooth joystick control (optional)
 5. RPLidar A1M8: 360-degree laser scanner (optional)
 6. USB Camera: Computer vision sensor (optional)
+7. MPU6050 IMU: 6-axis inertial measurement unit for sensor fusion (optional)
 
 Launch Parameters:
 - enable_joystick: true/false (default: true)
 - enable_lidar: true/false (default: true)
 - enable_camera: true/false (default: true)
+- enable_imu: true/false (default: true)
 
 Visualization (run on host computer):
 - RViz: ros2 run rviz2 rviz2 -d src/perceptor/config/main.rviz
@@ -39,11 +41,16 @@ Usage:
     ros2 launch perceptor launch_robot.launch.py
 
     # Robot base only (no sensors/joystick)
-    ros2 launch perceptor launch_robot.launch.py enable_joystick:=false enable_lidar:=false enable_camera:=false
+    ros2 launch perceptor launch_robot.launch.py enable_joystick:=false enable_lidar:=false enable_camera:=false enable_imu:=false
 
-    # Custom configuration
-    ros2 launch perceptor launch_robot.launch.py enable_lidar:=true enable_camera:=false
+    # Custom configuration with IMU for sensor fusion
+    ros2 launch perceptor launch_robot.launch.py enable_lidar:=true enable_camera:=false enable_imu:=true
 
+    # Full sensor suite including IMU
+    ros2 launch perceptor launch_robot.launch.py enable_joystick:=true enable_lidar:=true enable_camera:=true enable_imu:=true
+
+    # Navigation-focused configuration (LiDAR + IMU for SLAM and sensor fusion)
+    ros2 launch perceptor launch_robot.launch.py enable_camera:=false enable_imu:=true enable_lidar:=true
     # Visualization on host computer
     ros2 run rviz2 rviz2 -d src/perceptor/config/main.rviz
 """
@@ -90,6 +97,12 @@ def generate_launch_description():
         'enable_camera',
         default_value='true',
         description='Enable USB camera for computer vision'
+    )
+
+    enable_imu_arg = DeclareLaunchArgument(
+        'enable_imu',
+        default_value='true',
+        description='Enable MPU6050 IMU sensor for sensor fusion and improved odometry'
     )
 
     # Package name configuration
@@ -164,6 +177,17 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('enable_camera'))
     )
 
+    # IMU Sensor (Optional)
+    # MPU6050 6-axis IMU for sensor fusion and improved odometry
+    # Can be disabled with: enable_imu:=false
+    imu = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([os.path.join(
+            get_package_share_directory(package_name), 'launch', 'mpu6050.launch.py'
+        )]),
+        launch_arguments={'use_sim_time': 'false'}.items(),
+        condition=IfCondition(LaunchConfiguration('enable_imu'))
+    )
+
     # Twist Multiplexer Configuration
     # Path to configuration file defining command source priorities and timeouts
     twist_mux_params = os.path.join(
@@ -186,7 +210,20 @@ def generate_launch_description():
         ]
     )
 
-
+    # IMU Static Transform Publisher
+    # Publishes the transform from base_link to imu_link for proper TF tree integration
+    # Position: Center-mounted IMU, 10cm above base_link, aligned with robot orientation
+    # This ensures the IMU frame is available for sensor fusion and EKF integration
+    imu_transform = Node(
+        package='tf2_ros',                    # TF2 transform publisher package
+        executable='static_transform_publisher', # Static transform executable
+        name='imu_transform_publisher',       # Unique node name
+        # Arguments: x y z yaw pitch roll parent_frame child_frame
+        # Translation: 0,0,0.05 = center-mounted, 5cm above base_link
+        # Rotation: 0,0,0 = aligned with robot coordinate system
+        arguments=['0', '0', '0.1', '0', '0', '0', 'base_link', 'imu_link'],
+        condition=IfCondition(LaunchConfiguration('enable_imu'))  # Only launch if IMU enabled
+    )
 
     # Launch Description Assembly
     # Integrated robot system with optional sensor components
@@ -195,16 +232,19 @@ def generate_launch_description():
         enable_joystick_arg,           # Joystick enable/disable option
         enable_lidar_arg,              # LiDAR enable/disable option
         enable_camera_arg,             # Camera enable/disable option
+        enable_imu_arg,                # IMU enable/disable option
 
         # Core robot components
         rsp,                           # Robot state publisher (Create robot model)
         create_driver,                 # Create robot hardware driver
         twist_mux,                     # Command arbitration (immediate start)
+        imu_transform,                 # IMU static transform publisher (conditional)
 
         # Optional components (controlled by launch arguments)
         joystick,                      # Bluetooth gamepad control (conditional)
         lidar,                         # RPLidar A1M8 laser scanner (conditional)
         camera,                        # USB camera (conditional)
+        imu,                           # MPU6050 IMU sensor (conditional)
 
         # Note: Visualization tools run on host computer:
         # - RViz: ros2 run rviz2 rviz2 -d src/perceptor/config/main.rviz

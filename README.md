@@ -4,7 +4,18 @@
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi%205-red.svg)](https://www.raspberrypi.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+<table>
+<tr>
+<td width="600">
+<img src="docs/media/images/physical/perceptor.jpg" alt="Perceptor Robot - Physical Hardware" width="560"/>
+</td>
+<td>
+
 A comprehensive ROS2 robotics platform for autonomous navigation, SLAM mapping, and sensor fusion using an iRobot Create 2 base with integrated LiDAR sensor. Features include advanced autonomous navigation with keepout zones, variable speed limits, visual waypoint navigation, real-time collision monitoring, and multi-sensor fusion using Extended Kalman Filter (EKF). Designed for educational robotics, research applications, and maker projects with full simulation support and real hardware deployment capabilities.
+
+</td>
+</tr>
+</table>
 
 ## 🚀 Quick Start
 

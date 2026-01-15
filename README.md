@@ -13,9 +13,34 @@
 
 A comprehensive ROS2 robotics platform for autonomous navigation, SLAM mapping, and sensor fusion using an iRobot Create 2 base with integrated LiDAR sensor. Features include advanced autonomous navigation with keepout zones, variable speed limits, visual waypoint navigation, real-time collision monitoring, and multi-sensor fusion using Extended Kalman Filter (EKF). Designed for educational robotics, research applications, and maker projects with full simulation support and real hardware deployment capabilities.
 
+**Core Capabilities:**
+- 🗺️ **Real-time SLAM** — Pose graph-based mapping with loop closure detection via SLAM Toolbox
+- 🧭 **Autonomous Navigation** — Full Nav2 stack with MPPI controller, path planning, and obstacle avoidance
+- 🔄 **Multi-Sensor Fusion** — EKF combining wheel odometry (Create 2) + IMU (MPU6050) for drift-reduced localization
+- 🚧 **Advanced Nav Features** — Keepout zones, variable speed limits, waypoint following, collision monitoring
+- 📷 **Visual Servoing** — Real-time blob detection and tracking using OpenCV SimpleBlobDetector
+- 🎮 **Teleoperation** — Nintendo Pro Controller via Bluetooth with priority-based command arbitration
+
+**Tech Stack:** `ROS 2 Jazzy` • `Nav2` • `SLAM Toolbox` • `AMCL` • `robot_localization` • `twist_mux` • `OpenCV` • `create_robot`
+
 </td>
 </tr>
 </table>
+
+---
+
+## 📊 Demonstration Videos
+
+| Feature | Video |
+|---------|-------|
+| **Basic Teleoperation** | [![Teleoperation](https://img.youtube.com/vi/rfim3H5mtzY/mqdefault.jpg)](https://youtube.com/shorts/rfim3H5mtzY) |
+| **SLAM Mapping** | [![SLAM](https://img.youtube.com/vi/ATwA-HLwSGA/mqdefault.jpg)](https://www.youtube.com/watch?v=ATwA-HLwSGA) |
+| **Autonomous Navigation** | [![Navigation](https://img.youtube.com/vi/_yviKw15OY4/mqdefault.jpg)](https://www.youtube.com/watch?v=_yviKw15OY4) |
+| **Waypoint Navigation** | [![Waypoints](https://img.youtube.com/vi/LgVZ5oakM-A/mqdefault.jpg)](https://www.youtube.com/watch?v=LgVZ5oakM-A) |
+| **Keepout Zones** | [![Keepout](https://img.youtube.com/vi/esaRK12SdbA/mqdefault.jpg)](https://www.youtube.com/watch?v=esaRK12SdbA) |
+| **Speed Limits** | [![Speed](https://img.youtube.com/vi/KDUamMYnVzM/mqdefault.jpg)](https://www.youtube.com/watch?v=KDUamMYnVzM) |
+
+---
 
 ## 🚀 Quick Start
 
@@ -37,204 +62,346 @@ ros2 run rviz2 rviz2 -d src/perceptor/config/main.rviz
 
 ## 📋 Table of Contents
 
-- [🚀 Quick Start](#-quick-start)
+- **[1. System Architecture](#1-system-architecture)**
+  - [Hardware Architecture](#hardware-architecture)
+    - [Component Details](#component-details)
+    - [Hardware Connections](#hardware-connections)
+    - [create_driver Interface](#create_driver-interface)
+  - [Software Architecture](#software-architecture)
+    - [ROS2 Package Structure](#ros2-package-structure)
+    - [Node Topology](#node-topology)
+    - [Launch File Architecture](#launch-file-architecture)
 
-### **1. [Basic Robot Bringup and Teleoperation](#1-basic-robot-bringup-and-teleoperation)**
+- **[2. Robotics Pipeline](#2-robotics-pipeline)**
+  - **Sense**
+    - [LiDAR Integration](#lidar-integration)
+    - [IMU Integration](#imu-integration)
+    - [Camera Integration](#camera-integration)
+    - [Joystick Control](#joystick-control)
+  - **Plan**
+    - [Global Path Planning](#global-path-planning)
+    - [Local Path Planning](#local-path-planning)
+    - [Keepout Zones](#keepout-zones)
+    - [Speed Limit Zones](#speed-limit-zones)
+  - **Act**
+    - [Navigation Execution](#navigation-execution)
+    - [Waypoint Following](#waypoint-following)
+    - [Collision Monitoring](#collision-monitoring)
+    - [Visual Servoing](#visual-servoing)
+
+- **[3. Sensor Fusion (EKF)](#3-sensor-fusion-ekf)**
   - [Hardware Components](#hardware-components)
   - [Software Components](#software-components)
-  - [Launch File Usage](#launch-file-usage)
-
-### **2. [LiDAR Integration](#2-lidar-integration)**
-  - [Hardware Components](#hardware-components-1)
-  - [Software Components](#software-components-1)
-  - [Advanced Features](#advanced-features)
-
-### **3. [SLAM Mapping and Localization](#3-slam-mapping-and-localization)**
-  - [SLAM Algorithm Features](#slam-algorithm-features)
-  - [Mapping Capabilities](#mapping-capabilities)
-  - [Localization Systems](#localization-systems)
-
-### **4. [Autonomous Navigation](#4-autonomous-navigation)**
-  - [Core Navigation Stack](#core-navigation-stack)
-  - [**Navigating with Keepout Zones**](#navigating-with-keepout-zones)
-  - [**Navigating with Speed Limits**](#navigating-with-speed-limits)
-  - [**Waypoint Navigation**](#waypoint-navigation)
-  - [**Collision Monitor**](#collision-monitor)
-  - [Advanced Navigation Features](#advanced-navigation-features)
-
-### **5. [Sensor Fusion (Odometry + IMU)](#5-sensor-fusion-odometry--imu)**
-  - [Multi-sensor Integration](#multi-sensor-integration)
-  - [Hardware Components](#hardware-components-2)
+  - [Package Dependencies](#package-dependencies)
   - [EKF Configuration](#ekf-configuration)
 
-### **6. [Installation and Setup](#installation-and-setup)**
+- **[4. SLAM Mapping](#4-slam-mapping)**
+  - [Software Components](#software-components-1)
+  - [Demonstration Videos](#demonstration-videos)
+  - [Package Dependencies](#package-dependencies-1)
+  - [Launch File Usage](#launch-file-usage)
+
+- **[5. Localization (AMCL)](#5-localization-amcl)**
+  - [Overview](#overview)
+  - [Software Components](#software-components-2)
+  - [Demonstration Videos](#demonstration-videos-1)
+  - [Package Dependencies](#package-dependencies-2)
+  - [Launch File Usage](#launch-file-usage-1)
+  - [AMCL Configuration](#amcl-configuration)
+
+- **[6. Getting Started](#6-getting-started)**
   - [Prerequisites](#prerequisites)
   - [Complete Installation Guide](#complete-installation-guide)
-  - [Package Dependencies Summary](#package-dependencies-summary)
+  - [Quick Launch Guide](#quick-launch-guide)
 
-### **7. [Troubleshooting](#troubleshooting)**
+- **[7. Troubleshooting](#7-troubleshooting)**
   - [Common Hardware Issues](#common-hardware-issues)
   - [Software Debugging](#software-debugging)
+  - [Integration Challenges](#integration-challenges)
 
-### **Additional Resources**
+- **Additional Resources**
   - [Acknowledgments](#acknowledgments)
   - [Contributing](#contributing)
   - [License](#license)
 
 ---
 
-## 1. Basic Robot Bringup and Teleoperation
+## 1. System Architecture
 
-### Hardware Components
+The Perceptor robot follows a modular architecture designed for flexibility, real-world deployment, and educational clarity. The system separates hardware interfaces, perception, planning, and control into distinct layers.
 
-**Robot Platform:**
-- **iRobot Create 2**: Differential drive mobile base (0.235m wheel separation, 0.036m wheel radius)
-- **Raspberry Pi 5**: Main compute unit running ROS2 Jazzy (headless operation)
-- **Nintendo Pro Controller**: Bluetooth gamepad for manual teleoperation
+### Hardware Architecture
 
-**Physical Specifications:**
-- Base diameter: 348.5mm
-- Maximum speed: 0.5 m/s linear, 4.25 rad/s angular
-- Battery: Create 2 internal battery (14.4V, ~3000mAh)
-- Communication: USB serial connection to Pi 5
+The hardware stack integrates a mobile robot base with perception sensors and a central compute platform:
 
-### Software Components
+```mermaid
+flowchart TB
+    subgraph POWER["⚡ Power System"]
+        BATT["🔋 Create 2 Battery<br/>14.4V 3000mAh"]
+        VREG["USB Power<br/>5V to Pi 5"]
+    end
 
-**Core ROS2 Packages:**
-- `create_robot`: iRobot Create 2 driver and description
-- `joy`: Joystick/gamepad hardware interface
-- `teleop_twist_joy`: Joystick-to-velocity command conversion
-- `twist_mux`: Command arbitration and priority management
+    subgraph COMPUTE["🧠 Compute Platform"]
+        PI5["Raspberry Pi 5<br/>8GB RAM<br/>ROS 2 Jazzy<br/>Headless Mode"]
+    end
 
-**Control Architecture:**
-```
-Nintendo Pro Controller → joy_node → teleop_node → twist_mux → create_driver → Robot Hardware
-```
+    subgraph SENSORS["📡 Sensor Suite"]
+        LIDAR["RPLiDAR A1/A2<br/>360° @ 10Hz<br/>0.15-12m range"]
+        IMU["MPU6050 IMU<br/>6-axis @ 100Hz<br/>I2C Interface"]
+        CAM["USB Camera<br/>640×480 RGB"]
+    end
 
-### Demonstration Videos
-[![Basic Teleoperation Demo](https://img.youtube.com/vi/rfim3H5mtzY/maxresdefault.jpg)](https://youtube.com/shorts/rfim3H5mtzY)
-*Basic Teleoperation Demo - Nintendo Pro Controller with deadman switch and joystick control*
+    subgraph CONTROL["🎮 Control Interface"]
+        JOY["Nintendo Pro Controller<br/>Bluetooth"]
+    end
 
-### System Architecture Diagrams
-- 📊 **ROS Graph - Teleoperation**: ![ROS Graph Terminal 1](docs/media/images/system_architecture/ros_graph_teleoperation.png)
-- 🌳 **TF Tree - Basic Setup**: ![TF Tree Basic](docs/media/images/tf_frames/tf_tree_basic_teleoperation.png)
+    subgraph ROBOT["🤖 Mobile Platform"]
+        CREATE["iRobot Create 2<br/>Differential Drive<br/>Wheel Encoders"]
+    end
 
-### Package Dependencies
-
-**Build Requirements:**
-```bash
-# ROS2 packages
-sudo apt install ros-jazzy-create-robot ros-jazzy-joy ros-jazzy-teleop-twist-joy ros-jazzy-twist-mux
-
-# System dependencies
-sudo apt install bluetooth bluez-tools
+    BATT --> CREATE
+    BATT -->|"USB"| VREG --> PI5
+    LIDAR -->|"USB Serial"| PI5
+    IMU -->|"I2C"| PI5
+    CAM -->|"USB"| PI5
+    JOY -->|"Bluetooth"| PI5
+    PI5 -->|"USB Serial"| CREATE
 ```
 
-**Installation Commands:**
-```bash
-# Install dependencies
-cd ~/Roomba/slam_dev_ws
-rosdep install --from-paths src --ignore-src -r -y
+#### Component Details
 
-# Build workspace
-colcon build --packages-select perceptor create_robot create_driver create_msgs create_description
-source install/setup.bash
+| Component | Specification | Interface | Purpose |
+|-----------|--------------|-----------|---------|
+| **iRobot Create 2** | Differential drive, 348.5mm diameter | USB Serial `/dev/ttyUSB*` | Mobile base with wheel encoders, cliff sensors |
+| **Raspberry Pi 5** | 8GB RAM, ARM Cortex-A76 Quad-core | Central hub | ROS 2 Jazzy compute platform (headless) |
+| **RPLiDAR A1/A2** | 360°, 10Hz, 0.15-12m range, 1° resolution | USB Serial `/dev/ttyUSB0` | 2D laser scanning for SLAM and navigation |
+| **MPU6050 IMU** | 6-axis (3-axis gyro + 3-axis accel), 100Hz | I2C @ 0x68 | Angular velocity and linear acceleration for EKF |
+| **USB Camera** | 640×480 RGB, 30fps | USB | Visual servoing and ball tracking |
+| **Nintendo Pro Controller** | Bluetooth gamepad, dual analog sticks | Bluetooth | Teleoperation with deadman switch |
+
+#### Hardware Connections
+
+| Connection | Source | Destination | Protocol | Notes |
+|------------|--------|-------------|----------|-------|
+| Robot Power | Create 2 Battery (14.4V) | Create 2 + USB 5V | Power | Powers robot base and Pi 5 via USB |
+| Robot Control | Pi 5 | Create 2 | USB Serial 115200 baud | Velocity commands, odometry, sensor data |
+| LiDAR Data | RPLiDAR | Pi 5 | USB Serial | Scan data at 10Hz, 360 points/scan |
+| IMU Data | MPU6050 | Pi 5 GPIO | I2C (SDA/SCL) | 6-axis motion data at 100Hz |
+| Camera Feed | USB Camera | Pi 5 | USB | RGB frames at 30fps |
+| Controller | Pro Controller | Pi 5 | Bluetooth | Button/axis events |
+
+#### iRobot Create 2 Platform
+
+| Specification | Value | Notes |
+|---------------|-------|-------|
+| **Drive Type** | Differential drive | 2 independently driven wheels |
+| **Base Diameter** | 348.5 mm | Circular footprint |
+| **Wheel Separation** | 235 mm | Distance between wheel centers |
+| **Wheel Radius** | 36 mm | Drive wheel radius |
+| **Max Linear Velocity** | 0.5 m/s | Forward/backward |
+| **Max Angular Velocity** | 4.25 rad/s | Rotation in place |
+| **Battery** | 14.4V, ~3000mAh | NiMH or Li-ion |
+| **Built-in Sensors** | Wheel encoders, cliff sensors, bumpers, light bumpers, IR receivers | Hardware safety features |
+
+#### create_driver Interface
+
+The `create_driver` package provides the ROS 2 interface to the iRobot Create 2:
+
+| Topic | Type | Direction | Description |
+|-------|------|-----------|-------------|
+| `/cmd_vel` | `geometry_msgs/Twist` | Subscribe | Velocity commands (linear.x, angular.z) |
+| `/odom` | `nav_msgs/Odometry` | Publish | Wheel odometry (pose + twist) |
+| `/joint_states` | `sensor_msgs/JointState` | Publish | Wheel positions and velocities |
+| `/battery/capacity` | `std_msgs/Float32` | Publish | Battery charge percentage |
+| `/bumper` | `std_msgs/Bool` | Publish | Front bumper contact state |
+
+**Key Services:**
+- `/dock` - Navigate to charging dock
+- `/undock` - Leave charging dock
+- `/reset` - Reset robot state
+
+### Software Architecture
+
+The software stack follows a layered ROS 2 architecture with clear separation between hardware drivers, perception, planning, and control:
+
+```mermaid
+flowchart TB
+    subgraph DRIVER["🔧 Hardware Drivers"]
+        CD["create_driver<br/>/odom, /cmd_vel"]
+        RP["rplidar_ros<br/>/scan"]
+        JOY["joy_node<br/>/joy"]
+        IMU_DRV["mpu6050_driver<br/>/imu/mpu6050"]
+        CAM["usb_cam<br/>/image_raw"]
+    end
+
+    subgraph CONTROL["🎮 Control Layer"]
+        TELEOP["teleop_twist_joy<br/>/cmd_vel_joy"]
+        TRACKER["ball_tracker<br/>/cmd_vel_tracker"]
+        TMUX["twist_mux<br/>/cmd_vel"]
+    end
+
+    subgraph PERCEPTION["👁️ Perception Layer"]
+        EKF["robot_localization (EKF)<br/>/odometry/filtered"]
+        SLAM["slam_toolbox<br/>/map"]
+        AMCL["nav2_amcl<br/>/amcl_pose"]
+    end
+
+    subgraph PLANNING["🗺️ Planning Layer"]
+        PLANNER["nav2_planner<br/>/plan"]
+        CONTROLLER["nav2_controller (MPPI)<br/>/cmd_vel_nav"]
+        BT["bt_navigator<br/>Behavior Trees"]
+    end
+
+    CD --> EKF
+    IMU_DRV --> EKF
+    RP --> SLAM
+    RP --> AMCL
+    EKF --> SLAM
+    EKF --> AMCL
+    AMCL --> PLANNER
+    PLANNER --> CONTROLLER
+    CONTROLLER --> TMUX
+    TELEOP --> TMUX
+    TRACKER --> TMUX
+    TMUX --> CD
+    JOY --> TELEOP
+    CAM --> TRACKER
 ```
 
-### Launch File Usage
+#### ROS2 Package Structure
 
-**Primary Launch File: `launch_robot.launch.py`**
-```bash
-# Basic robot with teleoperation (default)
-ros2 launch perceptor launch_robot.launch.py
-
-# Basic teleoperation without sensors
-ros2 launch perceptor launch_robot.launch.py enable_camera:=false enable_lidar:=false
-
-# Disable joystick for autonomous-only operation
-ros2 launch perceptor launch_robot.launch.py enable_joystick:=false
-
-# Enable/disable individual sensors
-ros2 launch perceptor launch_robot.launch.py enable_lidar:=true enable_camera:=false
+```
+perceptor/
+├── config/                    # Configuration files
+│   ├── nav2_params.yaml       # Nav2 stack parameters (455 lines)
+│   ├── ekf_config.yaml        # EKF sensor fusion configuration
+│   ├── mapper_params_online_async.yaml  # SLAM Toolbox parameters
+│   ├── twist_mux.yaml         # Command priority configuration
+│   ├── pro_controller.yaml    # Joystick button mapping
+│   ├── ball_tracker_params_robot.yaml   # Visual servoing parameters
+│   ├── keepout_filter_info.yaml         # Keepout zone configuration
+│   ├── speed_filter_info.yaml           # Speed limit zone configuration
+│   └── *.rviz                 # RViz visualization configurations
+├── launch/                    # Launch files
+│   ├── launch_robot.launch.py # Main robot bringup (Pi 5)
+│   ├── localization_launch.py # AMCL localization
+│   ├── navigation_launch.py   # Nav2 navigation stack
+│   ├── sensor_fusion.launch.py # EKF fusion launch
+│   ├── keepout_extension.launch.py      # Keepout zone filter
+│   ├── speed_extension.launch.py        # Speed limit filter
+│   └── *.launch.py            # Modular component launches
+├── maps/                      # Pre-built environment maps
+│   ├── home.yaml/.pgm         # Primary navigation map (0.05m resolution)
+│   ├── keepout_mask.yaml/.pgm # No-go zone definitions
+│   └── speed_mask.yaml/.pgm   # Variable speed zone definitions
+├── scripts/                   # Utility scripts
+│   ├── create_keepout_mask.py # Interactive keepout zone creation
+│   ├── create_speed_mask.py   # Speed zone mask generation
+│   └── waypoint_manager.py    # Waypoint sequence management
+├── description/               # Robot URDF/Xacro files
+│   ├── robot.urdf.xacro       # Main robot description
+│   ├── lidar.xacro            # LiDAR sensor description
+│   └── imu.xacro              # IMU sensor description
+└── docs/media/                # Documentation assets
 ```
 
-**Basic Teleoperation Without Sensors:**
-This command launches only the robot base with Nintendo Pro Controller support for manual driving without any sensors active. This is useful for initial testing and basic robot movement verification.
+#### Launch File Architecture
 
-**Launch Arguments:**
-- `enable_joystick`: Enable Nintendo Pro Controller (default: true)
-- `enable_lidar`: Enable LiDAR sensor (default: false, launched separately)
-- `enable_camera`: Enable camera sensor (default: false, launched separately)
+The system uses a **modular multi-terminal approach** for maximum flexibility:
 
-**Gamepad Control Mapping:**
-- **Right Bumper (RB)**: Deadman switch (must hold to move)
-- **Left Stick**: Linear velocity (forward/backward)
-- **Right Stick**: Angular velocity (rotation)
-- **Left Bumper (LB)**: Turbo mode (increased speed scaling)
+| Terminal | Launch File | Components | Purpose |
+|----------|-------------|------------|---------|
+| **T1** | `launch_robot.launch.py` | Robot base, LiDAR, IMU, joystick, EKF | Core robot hardware and sensors |
+| **T2** | `localization_launch.py` | Map server, AMCL | Load map and localize robot |
+| **T3** | `navigation_launch.py` | Nav2 planner, controller, BT | Path planning and execution |
+| **T4** | `keepout_extension.launch.py` | Keepout filter | (Optional) No-go zones |
+| **T4** | `speed_extension.launch.py` | Speed filter | (Optional) Speed limit zones |
+
+**Benefits of Modular Architecture:**
+- Independent component start/stop without affecting others
+- Easy debugging by isolating issues to specific terminals
+- Flexible configuration for different operational modes
+- Standard Nav2 pattern following best practices
+
+#### Node Topology
+
+```mermaid
+graph LR
+    subgraph TF["TF Tree"]
+        MAP[map] --> ODOM[odom]
+        ODOM --> BASE[base_link]
+        BASE --> LASER[laser]
+        BASE --> IMU_LINK[imu_link]
+        BASE --> CAMERA[camera_link]
+    end
+
+    subgraph TOPICS["Key Topics"]
+        SCAN["/scan<br/>LaserScan"]
+        ODOM_T["/odom<br/>Odometry"]
+        CMD["/cmd_vel<br/>Twist"]
+        MAP_T["/map<br/>OccupancyGrid"]
+        POSE["/amcl_pose<br/>PoseWithCovarianceStamped"]
+    end
+```
+
+**Command Priority (twist_mux):**
+
+| Source | Topic | Priority | Timeout | Use Case |
+|--------|-------|----------|---------|----------|
+| Joystick | `/cmd_vel_joy` | 100 | 0.5s | Manual override (highest) |
+| Ball Tracker | `/cmd_vel_tracker` | 20 | 0.5s | Visual servoing |
+| Navigation | `/cmd_vel_nav` | 10 | 0.5s | Autonomous navigation |
 
 ---
 
-## 2. LiDAR Integration
+## 2. Robotics Pipeline
 
-### Hardware Components
+This section organizes capabilities following the standard robotics pipeline: **Sense → Plan → Act**. The perception algorithms (EKF, SLAM, AMCL) are covered in dedicated chapters 3-5.
 
-**LiDAR Sensor:**
-- **Model**: RPLiDAR A1/A2 (360-degree laser scanner)
-- **Range**: 0.15m to 12.0m measurement distance
-- **Resolution**: 360 samples per rotation (1° angular resolution)
-- **Update Rate**: 10Hz scan frequency
-- **Interface**: USB serial connection (/dev/ttyUSB0)
-- **Power**: 5V via USB, ~400mA current draw
+### Sense (Sensors & Inputs)
 
-**Physical Mounting:**
-- **Position**: Geometric center of robot, 200mm above base_link
-- **Coordinate Frame**: `laser` frame with 180° Z-axis rotation for proper orientation
-- **Mounting Hardware**: Custom 3D-printed bracket (STL files in `/hardware` directory)
+#### LiDAR Integration
 
-### Software Components
-
-**Core ROS2 Packages:**
-- `rplidar_ros`: Official Slamtec RPLiDAR driver
-- `sensor_msgs`: LaserScan message definitions
-- `tf2`: Coordinate frame transformations
+| Specification | Value |
+|---------------|-------|
+| **Model** | RPLiDAR A1/A2 (360° laser scanner) |
+| **Range** | 0.15m to 12.0m |
+| **Field of View** | 360° |
+| **Angular Resolution** | 1° (360 samples/rotation) |
+| **Scan Rate** | 10 Hz |
+| **Interface** | USB Serial (`/dev/ttyUSB0`) |
+| **ROS2 Package** | `rplidar_ros` |
+| **Output Topic** | `/scan` (`sensor_msgs/LaserScan`) |
+| **Physical Mounting** | Geometric center, 200mm above base_link |
+| **Coordinate Frame** | `laser` frame with 180° Z-axis rotation |
 
 **Data Flow:**
-```
-RPLiDAR Hardware → rplidar_ros → /scan topic → SLAM/Navigation algorithms
-                                     ↓
-                              TF: base_link → laser
-```
-
-### System Architecture Diagrams
-- 📊 **ROS Graph - Localization**: ![ROS Graph Terminal 2](docs/media/images/system_architecture/ros_graph_localization.png)
-- 🌳 **TF Tree - Navigation Stack**: ![TF Tree Navigation](docs/media/images/tf_frames/tf_tree_navigation_stack.png)
-- 📹 **[LiDAR scan visualization in RViz]** - Real-time laser scan data display
-
-### Package Dependencies
-
-**Build Requirements:**
-```bash
-# RPLiDAR driver
-sudo apt install ros-jazzy-rplidar-ros
-
-# TF and sensor message support
-sudo apt install ros-jazzy-tf2-ros ros-jazzy-sensor-msgs
-```
-
-**Hardware Setup:**
-```bash
-# Add user to dialout group for serial access
-sudo usermod -a -G dialout $USER
-# Logout and login required
-
-# Check device connection
-ls -la /dev/ttyUSB*
-# Should show: /dev/ttyUSB0 (or similar)
+```mermaid
+flowchart LR
+    subgraph HW["🔩 Hardware"]
+        LIDAR["RPLiDAR<br/>Hardware"]
+    end
+    subgraph DRIVER["🔧 Driver"]
+        ROS["rplidar_ros"]
+    end
+    subgraph TOPICS["📡 Topics"]
+        SCAN["/scan<br/>LaserScan"]
+        TF["TF: base_link → laser"]
+    end
+    subgraph CONSUMERS["🎯 Consumers"]
+        SLAM["slam_toolbox"]
+        AMCL["nav2_amcl"]
+        COST["Costmaps"]
+    end
+    LIDAR --> ROS
+    ROS --> SCAN
+    ROS --> TF
+    SCAN --> SLAM
+    SCAN --> AMCL
+    SCAN --> COST
 ```
 
-### Launch File Usage
-
-**Primary Launch File: `rplidar.launch.py`**
+**Launch Commands:**
 ```bash
 # Launch LiDAR sensor separately
 ros2 launch perceptor rplidar.launch.py
@@ -247,577 +414,233 @@ ros2 topic echo /scan --once
 ros2 topic hz /scan  # Should show ~10Hz
 ```
 
-**Robot Operation with LiDAR:**
-This enables the robot base with LiDAR sensor active for laser scan data collection while keeping the camera disabled. This configuration is ideal for SLAM mapping and navigation tasks.
-
-**Configuration Parameters:**
-- `serial_port`: Device path (default: /dev/ttyUSB0)
-- `frame_id`: TF frame name (default: laser)
-- `angle_compensate`: Motor speed compensation (default: true)
-- `scan_mode`: Scanning mode (default: Standard)
-
----
-
-## 3. SLAM Mapping and Localization
-
-### Software Components
-
-**SLAM Algorithm:**
-- **Package**: `slam_toolbox` (pose graph-based SLAM)
-- **Algorithm**: Karto SLAM with loop closure detection
-- **Map Representation**: Occupancy grid (nav_msgs/OccupancyGrid)
-- **Localization**: Particle filter-based pose estimation
-
-**Data Processing Pipeline:**
-```
-LiDAR (/scan) + Odometry (/odom) → slam_toolbox → Map (/map) + Pose (/tf: map→odom)
-```
-
-**Key Features:**
-- Real-time mapping during robot operation
-- Loop closure detection for map consistency
-- Pose graph optimization for drift correction
-- Map serialization for persistent storage
-
-### Demonstration Videos
-[![Real-time SLAM Mapping Demo](https://img.youtube.com/vi/ATwA-HLwSGA/maxresdefault.jpg)](https://www.youtube.com/watch?v=ATwA-HLwSGA)
-*Real-time SLAM Mapping Demo - Watch the robot build a complete house map in real-time*
-
-### System Architecture Diagrams
-- 🗺️ **[Generated map visualization]** - Example maps created in different environments
-
-### Package Dependencies
-
-**Build Requirements:**
-```bash
-# SLAM Toolbox
-sudo apt install ros-jazzy-slam-toolbox
-
-# Navigation messages and TF
-sudo apt install ros-jazzy-nav-msgs ros-jazzy-tf2-geometry-msgs
-```
-
-**Configuration Files:**
-```bash
-# SLAM configuration
-src/perceptor/config/slam_config.yaml
-
-# Map saving location
-maps/generated_map.yaml
-maps/generated_map.pgm
-```
-
-### Launch File Usage
-
-**SLAM Launch Commands:**
-```bash
-# Start SLAM mapping with custom configuration
-ros2 launch slam_toolbox online_async_launch.py slam_params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/mapper_params_online_async.yaml
-```
-
-**Map Generation Process:**
-1. **Start Robot**: Launch robot base and LiDAR sensor
-2. **Initialize SLAM**: Start slam_toolbox node with custom configuration
-3. **Load SLAM Toolbox Panel**: Open the SLAM Toolbox panel in RViz
-4. **Explore Environment**: Drive robot around to build the map
-5. **Monitor Progress**: Watch map building in RViz interface
-6. **Save Map**: Use the SLAM Toolbox panel to save the generated map
-
-**Important Note:** The map files will be saved on the machine where the SLAM command was executed. Use the SLAM Toolbox panel in RViz for the most reliable map saving process.
-
-**SLAM Parameters:**
-- `map_frame`: Map coordinate frame (default: map)
-- `odom_frame`: Odometry frame (default: odom)
-- `base_frame`: Robot base frame (default: base_link)
-- `scan_topic`: LiDAR data topic (default: /scan)
-- `resolution`: Map resolution in meters/pixel (default: 0.05)
-
----
-
-## 4. Autonomous Navigation
-
-### Software Components
-
-**Navigation Stack:**
-- **Package**: `nav2` (Navigation2 stack for ROS2)
-- **Localization**: AMCL (Adaptive Monte Carlo Localization)
-- **Path Planning**: NavFn planner with Dijkstra's algorithm
-- **Control**: DWB (Dynamic Window Approach) local planner
-- **Obstacle Avoidance**: Costmap-based dynamic obstacle detection
-
-**Navigation Pipeline:**
-```
-Goal → Global Planner → Local Planner → cmd_vel → Robot
-  ↑         ↑              ↑
-Map    Costmaps    LiDAR + Odometry
-```
-
-**Key Capabilities:**
-- Autonomous path planning to goal positions
-- Dynamic obstacle avoidance during navigation
-- Recovery behaviors for stuck situations
-- Multi-layered costmap system for safety
-
-### Demonstration Videos
-[![Autonomous Navigation Demo](https://img.youtube.com/vi/_yviKw15OY4/maxresdefault.jpg)](https://www.youtube.com/watch?v=_yviKw15OY4)
-*Autonomous Navigation Demo - Sequential goal navigation with Nav2 path planning*
-
-### System Architecture Diagrams
-- 📊 **ROS Graph - Navigation Stack**: ![ROS Graph Terminal 3](docs/media/images/system_architecture/ros_graph_navigation.png)
-- 🌳 **[Nav2 behavior tree visualization]** - Decision-making process visualization
-
-### Package Dependencies
-
-**Build Requirements:**
-```bash
-# Navigation2 stack
-sudo apt install ros-jazzy-navigation2 ros-jazzy-nav2-bringup
-
-# AMCL localization
-sudo apt install ros-jazzy-nav2-amcl
-
-# Map server for pre-built maps
-sudo apt install ros-jazzy-nav2-map-server
-```
-
-**Configuration Files:**
-```bash
-# Navigation parameters
-src/perceptor/config/nav2_params.yaml
-
-# Costmap configuration
-src/perceptor/config/costmap_params.yaml
-
-# AMCL localization settings
-src/perceptor/config/amcl_params.yaml
-```
-
-### Launch File Usage
-
-**Standard 3-Terminal Navigation Launch Sequence:**
-```bash
-# Terminal 1: Robot base and LiDAR
-ros2 launch perceptor launch_robot.launch.py enable_camera:=false
-
-# Terminal 2: AMCL localization (requires existing map)
-ros2 launch perceptor localization_launch.py \
-  map:=/home/pi/Roomba/slam_dev_ws/src/perceptor/maps/home.yaml \
-  params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/nav2_params.yaml
-
-# Terminal 3: Navigation stack (path planning and controllers)
-ros2 launch perceptor navigation_launch.py \
-  params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/nav2_params.yaml
-
-# Set navigation goal via RViz
-# Use "2D Goal Pose" tool in RViz interface
-```
-
-**Enhanced Navigation with Keepout Zones:**
-For navigation with keepout zone support, add a 4th terminal:
-```bash
-# Terminal 4: Keepout zone extension (optional)
-ros2 launch perceptor keepout_extension.launch.py \
-  keepout_mask:=/home/pi/Roomba/slam_dev_ws/src/perceptor/maps/keepout_mask.yaml
-```
-
-**AMCL Localization Setup:**
-After launching AMCL localization (Terminal 2), you must set the initial robot pose estimate in RViz using the '2D Pose Estimate' tool. This helps the particle filter converge to the correct robot position.
-
-**Navigation Stack Integration:**
-The navigation launch (Terminal 3) provides path planning, local control, and behavior coordination. It integrates seamlessly with the localization system to enable autonomous navigation.
-
-**Path Planning Workflow:**
-1. **Launch Robot Base**: Start robot hardware and sensor drivers (Terminal 1)
-2. **Initialize Localization**: Load map and start AMCL (Terminal 2)
-3. **Start Navigation**: Launch path planning and control systems (Terminal 3)
-4. **Set Initial Pose**: Use RViz '2D Pose Estimate' tool to initialize robot position
-5. **Set Navigation Goal**: Specify target position via RViz '2D Goal Pose' tool
-6. **Execute Plan**: Nav2 generates and follows optimal path to goal
-7. **Monitor Progress**: Track navigation status, obstacles, and goal completion
-
-**Navigation Parameters:**
-- `robot_radius`: Robot footprint for collision checking
-- `max_vel_x`: Maximum linear velocity (m/s)
-- `max_vel_theta`: Maximum angular velocity (rad/s)
-- `goal_tolerance`: Acceptable distance to goal (m)
-- `obstacle_range`: LiDAR range for obstacle detection (m)
-
-### Navigating with Keepout Zones
-
-**Concept:**
-Keepout zones allow you to define no-go areas in your environment where the robot should never navigate. These zones are useful for protecting sensitive equipment, avoiding hazardous areas, or respecting restricted spaces.
-
-**Implementation:**
-The keepout zone filter integrates with Nav2's costmap system to mark specific areas as completely impassable, with infinite cost values that prevent path planning through these regions.
-
 **Package Dependencies:**
 ```bash
-# Keepout zone support (included in nav2-bringup)
-sudo apt install ros-jazzy-nav2-costmap-2d
+sudo apt install ros-jazzy-rplidar-ros ros-jazzy-tf2-ros ros-jazzy-sensor-msgs
 ```
 
-**Configuration Parameters:**
-```yaml
-# costmap_params.yaml - Keepout Zone Filter
-keepout_filter:
-  plugin: "nav2_costmap_2d::KeepoutFilter"
-  enabled: True
-  filter_info_topic: "/costmap_filter_info"
+#### IMU Integration
 
-# Example keepout zone definition
-keepout_zones:
-  - polygon: [[2.0, 1.0], [3.0, 1.0], [3.0, 2.0], [2.0, 2.0]]  # Square zone
-  - polygon: [[5.0, 3.0], [6.0, 4.0], [5.5, 5.0]]              # Triangle zone
+| Specification | Value |
+|---------------|-------|
+| **Model** | MPU6050 |
+| **Axes** | 6-axis (3-axis gyro + 3-axis accelerometer) |
+| **Sampling Rate** | 100 Hz |
+| **Interface** | I2C @ address 0x68 |
+| **ROS2 Package** | Custom `mpu6050_driver` |
+| **Output Topic** | `/imu/mpu6050` (`sensor_msgs/Imu`) |
+| **Mounting** | Center of robot, 10cm above base_link |
+| **Coordinate Frame** | `imu_link` (static transform from base_link) |
+
+**Data Flow:**
+```mermaid
+flowchart LR
+    subgraph HW["🔩 Hardware"]
+        IMU["MPU6050<br/>6-axis IMU"]
+    end
+    subgraph INTERFACE["📶 Interface"]
+        I2C["I2C Bus<br/>@ 0x68"]
+    end
+    subgraph DRIVER["🔧 Driver"]
+        DRV["mpu6050_driver"]
+    end
+    subgraph TOPIC["📡 Topic"]
+        DATA["/imu/mpu6050<br/>sensor_msgs/Imu"]
+    end
+    subgraph FUSION["🧮 Fusion"]
+        EKF["robot_localization<br/>EKF"]
+    end
+    IMU --> I2C --> DRV --> DATA --> EKF
 ```
 
-**Modular 4-Terminal Launch Sequence:**
+**I2C Setup:**
 ```bash
-# Terminal 1: Robot base and LiDAR
-ros2 launch perceptor launch_robot.launch.py enable_camera:=false
+# Enable I2C interface on Raspberry Pi
+sudo raspi-config  # Interface Options → I2C → Enable
 
-# Terminal 2: AMCL localization with main navigation map
-ros2 launch perceptor localization_launch.py \
-  map:=/home/pi/Roomba/slam_dev_ws/src/perceptor/maps/home.yaml \
-  params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/nav2_params.yaml
+# Install I2C tools
+sudo apt install i2c-tools python3-smbus
 
-# Terminal 3: Navigation stack (path planning and controllers)
-ros2 launch perceptor navigation_launch.py \
-  params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/nav2_params.yaml
-
-# Terminal 4: Keepout zone extension (modular add-on)
-ros2 launch perceptor keepout_extension.launch.py \
-  keepout_mask:=/home/pi/Roomba/slam_dev_ws/src/perceptor/maps/keepout_mask.yaml
+# Verify IMU detection
+i2cdetect -y 1  # Should show device at 0x68
 ```
 
-**Architecture Benefits:**
-- **Modular Design**: Each component can be started/stopped independently
-- **Easy Debugging**: Issues can be isolated to specific terminals
-- **Flexible Usage**: Keepout zones can be added/removed without restarting navigation
-- **Standard Nav2 Pattern**: Follows established localization + navigation separation
+#### Camera Integration
 
-**Verification Commands:**
-```bash
-# Check keepout mask is loaded
-ros2 topic echo /keepout_filter_mask --once
-
-# Verify costmap integration
-ros2 topic echo /global_costmap/costmap --once
-
-# Monitor navigation behavior
-ros2 topic echo /plan --once
-```
-
-**Demonstration Videos:**
-[![Keepout Zone Navigation Demo](https://img.youtube.com/vi/esaRK12SdbA/maxresdefault.jpg)](https://www.youtube.com/watch?v=esaRK12SdbA)
-*Keepout Zone Navigation Demo - Robot intelligently avoiding restricted areas*
-
-**System Architecture Diagrams:**
-- 📊 **ROS Graph - Keepout Zones**: ![ROS Graph Terminal 4 Keepout](docs/media/images/system_architecture/ros_graph_keepout_zones.png)
-- 📊 **[Configuration example screenshots]** - RViz visualization of keepout zones
-
-**Reference:** [Nav2 Keepout Zones Tutorial](https://docs.nav2.org/tutorials/docs/navigation2_with_keepout_filter.html)
-
-### Navigating with Speed Limits
-
-**Concept:**
-Speed restriction zones enable variable velocity limits across different areas of your map. This feature allows safer navigation in crowded areas, near fragile equipment, or in zones requiring careful movement.
-
-**Implementation:**
-The speed filter modifies the robot's maximum velocities based on map annotations, creating dynamic speed zones that adapt to environmental requirements.
-
-**Package Dependencies:**
-```bash
-# Speed limit support (included in nav2-bringup)
-sudo apt install ros-jazzy-nav2-costmap-2d ros-jazzy-nav2-controller
-```
-
-**Configuration Parameters:**
-```yaml
-# costmap_params.yaml - Speed Filter
-speed_filter:
-  plugin: "nav2_costmap_2d::SpeedFilter"
-  enabled: True
-  filter_info_topic: "/speed_filter_info"
-  speed_limit_topic: "/speed_limit"
-
-# Example speed zones
-speed_zones:
-  - area: [[0.0, 0.0], [5.0, 0.0], [5.0, 5.0], [0.0, 5.0]]  # Slow zone
-    max_speed: 0.2  # 0.2 m/s maximum
-  - area: [[10.0, 10.0], [15.0, 15.0]]  # Fast zone
-    max_speed: 0.8  # 0.8 m/s maximum
-```
-
-**Modular 5-Terminal Launch Sequence (Speed Limits Only):**
-```bash
-# Terminal 1: Robot base and LiDAR
-ros2 launch perceptor launch_robot.launch.py enable_camera:=false
-
-# Terminal 2: AMCL localization with main navigation map
-ros2 launch perceptor localization_launch.py \
-  map:=/home/pi/Roomba/slam_dev_ws/src/perceptor/maps/home.yaml \
-  params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/nav2_params.yaml
-
-# Terminal 3: Navigation stack (path planning and controllers)
-ros2 launch perceptor navigation_launch.py \
-  params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/nav2_params.yaml
-
-# Terminal 4: Speed limit extension (modular add-on)
-ros2 launch perceptor speed_extension.launch.py \
-  speed_mask:=/home/pi/Roomba/slam_dev_ws/src/perceptor/maps/speed_mask.yaml
-```
-
-**Combined Navigation Filters (Speed + Keepout Zones):**
-```bash
-# Terminal 4: Both speed limits and keepout zones
-ros2 launch perceptor navigation_filters.launch.py \
-  speed_mask:=/home/pi/Roomba/slam_dev_ws/src/perceptor/maps/speed_mask.yaml \
-  keepout_mask:=/home/pi/Roomba/slam_dev_ws/src/perceptor/maps/keepout_mask.yaml
-```
-
-**Speed Zone Mask Configuration:**
-Speed zones are defined using grayscale values in the mask image:
-- **White (255)**: Full speed (1.0x multiplier)
-- **Light Gray (192)**: 75% speed (0.75x multiplier)
-- **Medium Gray (128)**: 50% speed (0.5x multiplier)
-- **Dark Gray (64)**: 25% speed (0.25x multiplier)
-- **Black (0)**: Very slow (0.1x multiplier)
-
-**Verification Commands:**
-```bash
-# Check speed mask is loaded
-ros2 topic echo /speed_filter_mask --once
-
-# Monitor current speed limits
-ros2 topic echo /speed_limit
-
-# Verify costmap integration
-ros2 topic echo /global_costmap/costmap --once
-
-# Check speed filter info
-ros2 topic echo /speed_filter_info --once
-```
-
-**Technical Note - Speed Filter Behavior:**
-The speed filter operates by:
-- **Proportional Scaling**: Speed multipliers are applied based on mask grayscale values
-- **Real-time Updates**: Speed limits change dynamically as robot moves through zones
-- **Controller Integration**: Works with DWB local planner to enforce speed restrictions
-- **Smooth Transitions**: Gradual speed changes between zones prevent abrupt stops
-
-**Integration with Existing Systems:**
-- **Compatible with Keepout Zones**: Both filters can operate simultaneously
-- **Costmap Integration**: Speed zones appear as colored overlays in global costmap
-- **Parameter Inheritance**: Uses existing nav2_params.yaml with added speed filter configuration
-- **Lifecycle Management**: Independent lifecycle control for easy enable/disable
-
-**Expected Behavior:**
-- Robot automatically slows down when entering darker zones
-- Speed increases when moving to lighter zones
-- Path planning considers speed restrictions for optimal routes
-- Local controller respects speed limits during execution
-
-**Troubleshooting:**
-```bash
-# Check if speed filter is active in costmap
-ros2 param get /global_costmap/global_costmap plugins
-
-# Verify speed filter configuration
-ros2 param get /global_costmap/global_costmap speed_filter.enabled
-
-# Monitor speed filter topic subscriptions
-ros2 topic info /speed_filter_info --verbose
-```
-
-**Demonstration Videos:**
-[![Variable Speed Navigation Demo](https://img.youtube.com/vi/KDUamMYnVzM/maxresdefault.jpg)](https://www.youtube.com/watch?v=KDUamMYnVzM)
-*Variable Speed Navigation Demo - Robot automatically adjusting speed in different zones*
-
-**System Architecture Diagrams:**
-- 📊 **ROS Graph - Speed Filter**: ![ROS Graph Terminal 4 Speed](docs/media/images/system_architecture/ros_graph_speed_filter.png)
-- 📊 **[Speed zone configuration screenshots]** - Map with color-coded speed areas
-
-**Reference:** [Nav2 Speed Filter Tutorial](https://docs.nav2.org/tutorials/docs/navigation2_with_speed_filter.html)
-
-### Waypoint Navigation
-
-**Concept:**
-Waypoint navigation enables the robot to follow a sequence of predefined points, creating complex patrol routes, inspection paths, or multi-destination missions. The waypoint follower manages the sequence and handles failures gracefully.
-
-**Implementation:**
-The waypoint follower functionality is **enabled** through the Perceptor robot's nav2_params.yaml configuration. No additional launch files or command-line tools are needed - waypoint navigation is controlled entirely through RViz's intuitive graphical interface.
-
-**Key Advantage:**
-RViz's Nav2 plugin provides a visual, point-and-click interface for setting waypoints directly on the map, making waypoint navigation accessible without programming knowledge.
-
-### Setting Waypoints with RViz Interface
-
-**Step-by-Step Waypoint Navigation:**
-
-1. **Launch Navigation Stack** (standard 3-terminal setup):
-```bash
-# Terminal 1: Robot base and LiDAR
-ros2 launch perceptor launch_robot.launch.py enable_camera:=false
-
-# Terminal 2: AMCL localization with main navigation map
-ros2 launch perceptor localization_launch.py \
-  map:=/home/pi/Roomba/slam_dev_ws/src/perceptor/maps/home.yaml \
-  params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/nav2_params.yaml
-
-# Terminal 3: Navigation stack (path planning and controllers)
-ros2 launch perceptor navigation_launch.py \
-  params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/nav2_params.yaml
-```
-
-2. **Open RViz** and ensure Nav2 plugin is loaded:
-   ```bash
-   rviz2 -d /opt/ros/jazzy/share/nav2_bringup/rviz/nav2_default_view.rviz
-   ```
-
-3. **Set Initial Robot Pose**:
-   - Click **"2D Pose Estimate"** tool in RViz toolbar
-   - Click and drag on map to set robot's starting position and orientation
-   - Verify AMCL particle cloud converges around robot
-
-4. **Add Waypoints Visually**:
-   - Click **"Waypoint Mode"** button in Nav2 panel (or use "Nav2 Goal" tool)
-   - Click on map locations where you want the robot to visit
-   - Each click adds a waypoint to the sequence
-   - Waypoints appear as numbered markers on the map
-
-5. **Start Waypoint Following**:
-   - Click **"Start Waypoint Following"** button in Nav2 panel
-   - Robot will navigate to each waypoint in sequence
-   - Progress is shown in RViz with path visualization and status updates
-
-**Integration with Navigation Features:**
-- **Keepout Zone Awareness**: Waypoints automatically avoid restricted areas
-- **Speed Zone Compliance**: Robot adjusts speed appropriately during waypoint navigation
-- **Dynamic Obstacle Avoidance**: Real-time path adjustments around moving obstacles
-- **Recovery Behaviors**: Automatic retry and recovery on navigation failures
-
-**Configuration Parameters** (already enabled in nav2_params.yaml):
-```yaml
-waypoint_follower:
-  ros__parameters:
-    loop_rate: 20.0
-    stop_on_failure: false
-    waypoint_task_executor_plugin: "wait_at_waypoint"
-    wait_at_waypoint:
-      plugin: "nav2_waypoint_follower::WaitAtWaypoint"
-      enabled: True
-      waypoint_pause_duration: 2000  # 2 seconds pause at each waypoint
-```
-
-**Advanced Waypoint Features:**
-- **Looped Patrol Routes**: Set `stop_on_failure: false` for continuous patrol
-- **Custom Pause Durations**: Adjust wait time at each waypoint as needed
-- **Failure Recovery**: Automatic retry and alternative path planning
-- **Multi-Goal Coordination**: Seamless integration with single-goal navigation
-
-**Troubleshooting Waypoint Navigation:**
-```bash
-# Check waypoint follower status
-ros2 lifecycle get /waypoint_follower
-
-# Monitor waypoint execution
-ros2 topic echo /waypoint_follower/transition_event
-
-# View current waypoint action status
-ros2 action list | grep waypoint
-```
-
-**Multimedia Placeholders:**
-- � **[RViz waypoint interface demo]** - Visual waypoint setting and execution
-- 📊 **[Multi-waypoint patrol screenshots]** - Complex route planning examples
-
-**Demonstration Videos:**
-[![Waypoint Navigation Demo](https://img.youtube.com/vi/LgVZ5oakM-A/maxresdefault.jpg)](https://www.youtube.com/watch?v=LgVZ5oakM-A)
-*Multi-Waypoint Navigation Demo - Visual point-and-click interface for sequential goal execution*
-
-**Reference:** [Nav2 Waypoint Follower Tutorial](https://docs.nav2.org/tutorials/docs/navigation2_with_waypoint_follower.html)
-
-### Collision Monitor
-
-**Concept:**
-The collision monitor provides real-time safety monitoring by continuously checking for potential collisions using sensor data. It can trigger emergency stops, speed reductions, or approach warnings based on configurable safety zones.
-
-**Implementation:**
-The collision_monitor node creates multiple polygon-based detection zones around the robot, each with different safety behaviors. It integrates with LiDAR data to provide immediate collision avoidance responses.
-
-**Package Dependencies:**
-```bash
-# Collision monitoring support
-sudo apt install ros-jazzy-nav2-collision-monitor ros-jazzy-nav2-lifecycle-manager
-```
-
-**Configuration Parameters:**
-```yaml
-# collision_monitor_params.yaml
-collision_monitor:
-  base_frame_id: "base_link"
-  odom_frame_id: "odom"
-  cmd_vel_in_topic: "cmd_vel_smoothed"
-  cmd_vel_out_topic: "cmd_vel"
-  state_topic: "collision_monitor_state"
-
-  # Polygon definitions
-  polygons: ["PolygonStop", "PolygonSlow", "PolygonApproach"]
-
-  PolygonStop:
-    type: "polygon"
-    points: [0.3, 0.3, 0.3, -0.3, -0.2, -0.3, -0.2, 0.3]  # Close safety zone
-    action_type: "stop"  # Emergency stop
-    max_points: 3  # Minimum points to trigger
-
-  PolygonSlow:
-    type: "polygon"
-    points: [0.6, 0.5, 0.6, -0.5, -0.4, -0.5, -0.4, 0.5]  # Medium safety zone
-    action_type: "slowdown"
-    slowdown_ratio: 0.3  # Reduce speed to 30%
-
-  PolygonApproach:
-    type: "polygon"
-    points: [1.0, 0.8, 1.0, -0.8, -0.6, -0.8, -0.6, 0.8]  # Warning zone
-    action_type: "approach"  # Warning only
-```
+| Specification | Value |
+|---------------|-------|
+| **Model** | USB Camera (generic V4L2) |
+| **Resolution** | 640×480 RGB |
+| **Frame Rate** | 30 fps |
+| **Interface** | USB |
+| **ROS2 Package** | `usb_cam` |
+| **Output Topic** | `/image_raw` (`sensor_msgs/Image`) |
+| **Use Case** | Visual servoing, ball tracking |
 
 **Launch Commands:**
 ```bash
-# Start collision monitor with navigation
-ros2 launch nav2_bringup navigation_launch.py use_sim_time:=false \
-  params_file:=src/perceptor/config/collision_monitor_params.yaml
+# Launch camera sensor
+ros2 launch perceptor camera.launch.py
 
-# Monitor collision states
-ros2 topic echo /collision_monitor_state
-
-# Check collision monitor status
-ros2 lifecycle get /collision_monitor
+# Robot operation with camera enabled
+ros2 launch perceptor launch_robot.launch.py enable_camera:=true enable_lidar:=false
 ```
 
-**Safety Configuration Examples:**
+#### Joystick Control
+
+| Specification | Value |
+|---------------|-------|
+| **Model** | Nintendo Pro Controller |
+| **Interface** | Bluetooth |
+| **ROS2 Package** | `joy` + `teleop_twist_joy` |
+| **Deadman Switch** | Y Button (button 3) |
+| **Linear Axis** | Left stick vertical (axis 1) |
+| **Angular Axis** | Left stick horizontal (axis 0) |
+| **Speed Modes** | Slow: 0.2 m/s linear, 1.2 rad/s angular |
+| | Fast: 0.4 m/s linear, 2.4 rad/s angular |
+
+**Control Architecture:**
+```mermaid
+flowchart LR
+    subgraph INPUT["🎮 Input"]
+        JOY["Nintendo Pro<br/>Controller"]
+    end
+    subgraph NODES["🔧 ROS2 Nodes"]
+        JOYN["joy_node<br/>/joy"]
+        TELEOP["teleop_twist_joy<br/>/cmd_vel_joy"]
+        MUX["twist_mux<br/>/cmd_vel"]
+    end
+    subgraph DRIVER["🤖 Robot Driver"]
+        CD["create_driver"]
+    end
+    subgraph ROBOT["⚙️ Actuators"]
+        BASE["Create 2<br/>Motors"]
+    end
+    JOY -->|"Bluetooth"| JOYN --> TELEOP --> MUX --> CD --> BASE
+```
+
+**Bluetooth Pairing:**
+```bash
+sudo bluetoothctl
+scan on
+# Hold Share + Home buttons on controller
+pair XX:XX:XX:XX:XX:XX
+trust XX:XX:XX:XX:XX:XX
+connect XX:XX:XX:XX:XX:XX
+exit
+
+# Verify controller detection
+ls /dev/input/js*  # Should show js0
+ros2 topic echo /joy --once
+```
+
+**Demonstration Video:**
+[![Basic Teleoperation Demo](https://img.youtube.com/vi/rfim3H5mtzY/maxresdefault.jpg)](https://youtube.com/shorts/rfim3H5mtzY)
+*Basic Teleoperation Demo - Nintendo Pro Controller with deadman switch and joystick control*
+
+### Plan (Path Planning)
+
+#### Global Path Planning
+
+| Parameter | Value |
+|-----------|-------|
+| **Planner** | NavFn (Dijkstra's algorithm) |
+| **Costmap** | Global costmap with static map layer |
+| **Resolution** | 0.05 m/cell |
+| **Inflation Radius** | 0.25 m |
+
+#### Local Path Planning
+
+| Parameter | Value |
+|-----------|-------|
+| **Controller** | MPPI (Model Predictive Path Integral) |
+| **Frequency** | 20 Hz |
+| **Time Horizon** | 56 steps × 0.05s = 2.8s lookahead |
+| **Goal Tolerance** | 0.25 m (XY), 0.25 rad (yaw) |
+
+#### Keepout Zones
+
+Define no-go areas where the robot should never navigate:
+
 ```yaml
-# Conservative settings (slow robot)
-conservative_safety:
-  stop_zone: 0.4m radius    # Large stop zone
-  slow_zone: 0.8m radius    # Large slow zone
-  slowdown_ratio: 0.2       # Very slow (20% speed)
-
-# Aggressive settings (fast robot)
-aggressive_safety:
-  stop_zone: 0.2m radius    # Small stop zone
-  slow_zone: 0.5m radius    # Medium slow zone
-  slowdown_ratio: 0.6       # Moderate slow (60% speed)
+# Keepout zone mask (grayscale image)
+# Black pixels = forbidden areas (infinite cost)
+# White pixels = traversable areas
 ```
 
-**System Architecture Diagrams:**
-- 📊 **[Collision zone visualization screenshots]** - RViz display of safety polygons
+**Launch:** `ros2 launch perceptor keepout_extension.launch.py`
 
-**Reference:** [Nav2 Collision Monitor Tutorial](https://docs.nav2.org/tutorials/docs/navigation2_with_collision_monitor.html)
+**Demonstration Video:**
+[![Keepout Zones Demo](https://img.youtube.com/vi/esaRK12SdbA/maxresdefault.jpg)](https://www.youtube.com/watch?v=esaRK12SdbA)
+*Keepout Zones Demo - Robot navigates around defined no-go areas using costmap filters*
+
+#### Speed Limit Zones
+
+Define areas with variable maximum speeds:
+
+| Grayscale Value | Speed Multiplier | Use Case |
+|-----------------|------------------|----------|
+| 255 (White) | 1.0× (full speed) | Open areas |
+| 192 | 0.75× | Moderate caution |
+| 128 | 0.50× | Careful zones |
+| 64 | 0.25× | Very slow zones |
+| 0 (Black) | 0.1× | Minimum speed |
+
+**Launch:** `ros2 launch perceptor speed_extension.launch.py`
+
+**Demonstration Video:**
+[![Speed Limit Zones Demo](https://img.youtube.com/vi/KDUamMYnVzM/maxresdefault.jpg)](https://www.youtube.com/watch?v=KDUamMYnVzM)
+*Speed Limit Zones Demo - Robot adjusts velocity based on zone-specific speed limits*
+
+### Act (Execution)
+
+#### Navigation Execution
+
+The Nav2 behavior tree manages navigation execution with:
+- Path following with obstacle avoidance
+- Recovery behaviors for stuck situations
+- Goal cancellation and replanning
+- Progress monitoring and timeout handling
+
+#### Waypoint Following
+
+| Parameter | Value |
+|-----------|-------|
+| **Plugin** | `nav2_waypoint_follower::WaitAtWaypoint` |
+| **Loop Rate** | 20 Hz |
+| **Pause Duration** | 2 seconds at each waypoint |
+| **Failure Handling** | Continue to next waypoint |
+
+**Interface:** Use RViz "Waypoint Mode" for visual waypoint setting.
+
+**Demonstration Video:**
+[![Waypoint Navigation Demo](https://img.youtube.com/vi/LgVZ5oakM-A/maxresdefault.jpg)](https://www.youtube.com/watch?v=LgVZ5oakM-A)
+*Waypoint Navigation Demo - Robot follows a sequence of waypoints set via RViz interface*
+
+#### Collision Monitoring
+
+Real-time safety monitoring with configurable safety zones:
+
+| Zone Type | Action | Description |
+|-----------|--------|-------------|
+| `PolygonStop` | Emergency stop | Immediate halt when obstacles detected |
+| `PolygonSlow` | Speed reduction | Reduce to 30% speed |
+| `PolygonApproach` | Warning | Continue with caution |
+
+#### Visual Servoing
+
+Ball tracking and following using OpenCV SimpleBlobDetector:
+
+| Parameter | Value |
+|-----------|-------|
+| **Package** | `ball_tracker` |
+| **Detection** | SimpleBlobDetector (color-based) |
+| **Control** | Proportional control to center blob |
+| **Output** | `/cmd_vel_tracker` (priority 20) |
 
 ---
 
-## 5. Sensor Fusion (Odometry + IMU)
+## 3. Sensor Fusion (EKF)
 
 ### Hardware Components
 
@@ -841,10 +664,27 @@ aggressive_safety:
 - **Output**: Fused odometry (/odometry/filtered) with improved accuracy
 
 **Data Flow:**
-```
-Wheel Encoders → /odom ↘
-                        → EKF → /odometry/filtered → SLAM/Navigation
-IMU Sensor → /imu/data ↗
+```mermaid
+flowchart LR
+    subgraph SENSORS["📡 Sensor Sources"]
+        WHEEL["Wheel Encoders<br/>/odom"]
+        IMU["IMU Sensor<br/>/imu/data"]
+    end
+    subgraph FUSION["🧮 Fusion"]
+        EKF["robot_localization<br/>EKF"]
+    end
+    subgraph OUTPUT["📤 Output"]
+        FUSED["/odometry/filtered"]
+    end
+    subgraph CONSUMERS["🎯 Consumers"]
+        SLAM["slam_toolbox"]
+        NAV["Nav2 Stack"]
+    end
+    WHEEL --> EKF
+    IMU --> EKF
+    EKF --> FUSED
+    FUSED --> SLAM
+    FUSED --> NAV
 ```
 
 ### Multimedia Placeholders
@@ -917,28 +757,205 @@ imu0_config: [false, false, false,  # x, y, z
 
 ---
 
-## Installation and Setup
+## 4. SLAM Mapping
+
+### Software Components
+
+**SLAM Algorithm:**
+- **Package**: `slam_toolbox` (pose graph-based SLAM)
+- **Algorithm**: Karto SLAM with loop closure detection
+- **Map Representation**: Occupancy grid (nav_msgs/OccupancyGrid)
+- **Localization**: Particle filter-based pose estimation
+
+**Data Processing Pipeline:**
+```mermaid
+flowchart LR
+    subgraph INPUTS["📡 Inputs"]
+        LIDAR["/scan<br/>LaserScan"]
+        ODOM["/odom<br/>Odometry"]
+    end
+    subgraph SLAM["🗺️ SLAM"]
+        ST["slam_toolbox<br/>Karto SLAM"]
+    end
+    subgraph OUTPUTS["📤 Outputs"]
+        MAP["/map<br/>OccupancyGrid"]
+        TF["TF: map → odom"]
+    end
+    LIDAR --> ST
+    ODOM --> ST
+    ST --> MAP
+    ST --> TF
+```
+
+**Key Features:**
+- Real-time mapping during robot operation
+- Loop closure detection for map consistency
+- Pose graph optimization for drift correction
+- Map serialization for persistent storage
+
+### Demonstration Videos
+[![Real-time SLAM Mapping Demo](https://img.youtube.com/vi/ATwA-HLwSGA/maxresdefault.jpg)](https://www.youtube.com/watch?v=ATwA-HLwSGA)
+*Real-time SLAM Mapping Demo - Watch the robot build a complete house map in real-time*
+
+### System Architecture Diagrams
+- 🗺️ **[Generated map visualization]** - Example maps created in different environments
+
+### Package Dependencies
+
+**Build Requirements:**
+```bash
+# SLAM Toolbox
+sudo apt install ros-jazzy-slam-toolbox
+
+# Navigation messages and TF
+sudo apt install ros-jazzy-nav-msgs ros-jazzy-tf2-geometry-msgs
+```
+
+**Configuration Files:**
+```bash
+# SLAM configuration
+src/perceptor/config/slam_config.yaml
+
+# Map saving location
+maps/generated_map.yaml
+maps/generated_map.pgm
+```
+
+### Launch File Usage
+
+**SLAM Launch Commands:**
+```bash
+# Start SLAM mapping with custom configuration
+ros2 launch slam_toolbox online_async_launch.py slam_params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/mapper_params_online_async.yaml
+```
+
+**Map Generation Process:**
+1. **Start Robot**: Launch robot base and LiDAR sensor
+2. **Initialize SLAM**: Start slam_toolbox node with custom configuration
+3. **Load SLAM Toolbox Panel**: Open the SLAM Toolbox panel in RViz
+4. **Explore Environment**: Drive robot around to build the map
+5. **Monitor Progress**: Watch map building in RViz interface
+6. **Save Map**: Use the SLAM Toolbox panel to save the generated map
+
+**Important Note:** The map files will be saved on the machine where the SLAM command was executed. Use the SLAM Toolbox panel in RViz for the most reliable map saving process.
+
+**SLAM Parameters:**
+- `map_frame`: Map coordinate frame (default: map)
+- `odom_frame`: Odometry frame (default: odom)
+- `base_frame`: Robot base frame (default: base_link)
+- `scan_topic`: LiDAR data topic (default: /scan)
+- `resolution`: Map resolution in meters/pixel (default: 0.05)
+
+---
+
+## 5. Localization (AMCL)
+
+### Overview
+
+AMCL (Adaptive Monte Carlo Localization) provides robot localization within a pre-built map using particle filter-based pose estimation. It uses LiDAR scan matching against the known map to determine the robot's position.
+
+### Software Components
+
+**Localization Stack:**
+- **Package**: `nav2_amcl` (Navigation2 AMCL implementation)
+- **Algorithm**: Adaptive Monte Carlo Localization (particle filter)
+- **Input**: LiDAR scans (/scan) + pre-built map (/map)
+- **Output**: Robot pose estimate (/amcl_pose) + TF (map→odom)
+
+**Data Flow:**
+```mermaid
+flowchart LR
+    subgraph INPUTS["📡 Inputs"]
+        MAP["/map<br/>OccupancyGrid"]
+        SCAN["/scan<br/>LaserScan"]
+    end
+    subgraph LOCALIZATION["📍 Localization"]
+        AMCL["nav2_amcl<br/>Particle Filter"]
+    end
+    subgraph OUTPUTS["📤 Outputs"]
+        POSE["/amcl_pose<br/>PoseWithCovarianceStamped"]
+        TF["TF: map → odom"]
+    end
+    MAP --> AMCL
+    SCAN --> AMCL
+    AMCL --> POSE
+    AMCL --> TF
+```
+
+### Demonstration Videos
+[![Autonomous Navigation Demo](https://img.youtube.com/vi/_yviKw15OY4/maxresdefault.jpg)](https://www.youtube.com/watch?v=_yviKw15OY4)
+*Autonomous Navigation Demo - AMCL localization with Nav2 path planning*
+
+### Package Dependencies
+
+**Build Requirements:**
+```bash
+# AMCL localization
+sudo apt install ros-jazzy-nav2-amcl
+
+# Map server for loading pre-built maps
+sudo apt install ros-jazzy-nav2-map-server
+```
+
+### Launch File Usage
+
+**AMCL Launch Commands:**
+```bash
+# Start localization with pre-built map
+ros2 launch perceptor localization_launch.py \
+  map:=/home/pi/Roomba/slam_dev_ws/src/perceptor/maps/home.yaml \
+  params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/nav2_params.yaml
+```
+
+**Initial Pose Setup:**
+After launching AMCL, set the initial robot pose in RViz:
+1. Click **"2D Pose Estimate"** tool in RViz toolbar
+2. Click and drag on map to set robot's starting position and orientation
+3. Verify AMCL particle cloud converges around robot
+
+### AMCL Configuration
+
+**Key Parameters (nav2_params.yaml):**
+```yaml
+amcl:
+  ros__parameters:
+    min_particles: 500
+    max_particles: 2000
+    update_min_d: 0.25  # Minimum distance before update
+    update_min_a: 0.2   # Minimum rotation before update
+    laser_model_type: "likelihood_field"
+    robot_model_type: "nav2_amcl::DifferentialMotionModel"
+```
+
+**Particle Filter Behavior:**
+- **Adaptive Resampling**: Particle count adjusts based on localization confidence
+- **Motion Model**: Differential drive model matches Create 2 kinematics
+- **Sensor Model**: Likelihood field model for efficient scan matching
+
+---
+
+## 6. Getting Started
 
 ### Prerequisites
 
 **System Requirements:**
-- **Operating System**: Ubuntu 22.04 LTS or Raspberry Pi OS (64-bit)
+- **Operating System**: Ubuntu 24.04 LTS (Pi) or Ubuntu 22.04 (host)
 - **ROS2 Distribution**: Jazzy Jalopy
-- **Hardware**: iRobot Create 2, RPLiDAR A1/A2, Nintendo Pro Controller
-- **Compute**: Raspberry Pi 5 (8GB recommended) or x86_64 PC
+- **Hardware**: iRobot Create 2, RPLiDAR A1/A2, MPU6050 IMU, Nintendo Pro Controller
+- **Compute**: Raspberry Pi 5 (8GB recommended) for robot, x86_64 PC for visualization
 
 ### Complete Installation Guide
 
-**1. ROS2 Jazzy Installation:**
+**1. ROS2 Jazzy Installation (Raspberry Pi 5):**
 ```bash
 # Add ROS2 repository
 sudo apt update && sudo apt install curl gnupg lsb-release
 sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
 sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list'
 
-# Install ROS2 Jazzy
+# Install ROS2 Jazzy (base for headless Pi)
 sudo apt update
-sudo apt install ros-jazzy-desktop  # Full installation
+sudo apt install ros-jazzy-ros-base
 source /opt/ros/jazzy/setup.bash
 ```
 
@@ -950,35 +967,32 @@ cd ~/Roomba/slam_dev_ws/src
 
 # Clone required repositories
 git clone https://github.com/AutonomyLab/create_robot.git
-git clone https://github.com/Slamtec/rplidar_ros.git
+git clone https://github.com/Slamtec/rplidar_ros.git -b ros2
 git clone <this-repository-url> perceptor
 
-# Install all dependencies
+# Install dependencies
 cd ~/Roomba/slam_dev_ws
 rosdep install --from-paths src --ignore-src -r -y
 ```
 
 **3. Build Workspace:**
 ```bash
-# Build all packages
 cd ~/Roomba/slam_dev_ws
 colcon build --symlink-install
-
-# Source workspace
 source install/setup.bash
 echo "source ~/Roomba/slam_dev_ws/install/setup.bash" >> ~/.bashrc
 ```
 
 **4. Hardware Setup:**
 ```bash
-# Serial port permissions
+# Serial port permissions (LiDAR, Create 2)
 sudo usermod -a -G dialout $USER
 
-# Bluetooth setup (for gamepad)
+# Bluetooth setup (Nintendo Pro Controller)
 sudo apt install bluetooth bluez-tools
 sudo systemctl enable bluetooth
 
-# I2C setup (for IMU)
+# I2C setup (MPU6050 IMU)
 sudo raspi-config  # Enable I2C interface
 sudo apt install i2c-tools python3-smbus
 
@@ -986,29 +1000,41 @@ sudo apt install i2c-tools python3-smbus
 sudo reboot
 ```
 
-### Package Dependencies Summary
+### Quick Launch Guide
 
-**Core Dependencies:**
+**Standard 3-Terminal Navigation Launch:**
+
 ```bash
-# Robot base and control
-ros-jazzy-create-robot ros-jazzy-joy ros-jazzy-teleop-twist-joy ros-jazzy-twist-mux
+# Terminal 1: Robot base with sensors
+ros2 launch perceptor launch_robot.launch.py
 
-# LiDAR and sensors
-ros-jazzy-rplidar-ros ros-jazzy-sensor-msgs
+# Terminal 2: Localization (load existing map)
+ros2 launch perceptor localization_launch.py \
+  map:=/home/pi/Roomba/slam_dev_ws/src/perceptor/maps/home.yaml \
+  params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/nav2_params.yaml
 
-# SLAM and navigation
-ros-jazzy-slam-toolbox ros-jazzy-navigation2 ros-jazzy-nav2-bringup
+# Terminal 3: Navigation stack
+ros2 launch perceptor navigation_launch.py \
+  params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/nav2_params.yaml
 
-# Sensor fusion
-ros-jazzy-robot-localization ros-jazzy-imu-tools
+# Host computer: Visualization
+ros2 run rviz2 rviz2 -d src/perceptor/config/main.rviz
+```
 
-# Visualization and tools
-ros-jazzy-rviz2 ros-jazzy-tf2-tools ros-jazzy-rqt-graph
+**SLAM Mapping (create new map):**
+
+```bash
+# Terminal 1: Robot base with sensors
+ros2 launch perceptor launch_robot.launch.py
+
+# Terminal 2: SLAM Toolbox
+ros2 launch slam_toolbox online_async_launch.py \
+  slam_params_file:=/home/pi/Roomba/slam_dev_ws/src/perceptor/config/mapper_params_online_async.yaml
 ```
 
 ---
 
-## Troubleshooting
+## 7. Troubleshooting
 
 ### Common Hardware Issues
 
@@ -1093,6 +1119,67 @@ ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "{name: {data:
 # Navigation debugging
 ros2 topic echo /cmd_vel  # Monitor velocity commands
 ros2 topic echo /amcl_pose  # Check localization
+```
+
+### Integration Challenges
+
+**EKF Sensor Fusion Not Working:**
+```bash
+# Verify both odometry sources are publishing
+ros2 topic hz /odom           # Should be ~30Hz from create_driver
+ros2 topic hz /imu/mpu6050    # Should be ~100Hz from IMU
+
+# Check EKF output
+ros2 topic echo /odometry/filtered --once
+
+# Verify TF tree includes imu_link
+ros2 run tf2_ros tf2_echo base_link imu_link
+
+# Common fix: Ensure IMU frame is published
+ros2 run tf2_ros static_transform_publisher 0 0 0.1 0 0 0 base_link imu_link
+```
+
+**Nav2 Lifecycle Issues:**
+```bash
+# Check lifecycle states of all Nav2 nodes
+ros2 lifecycle list /controller_server
+ros2 lifecycle list /planner_server
+ros2 lifecycle list /bt_navigator
+
+# Manually activate if stuck in "unconfigured"
+ros2 lifecycle set /controller_server configure
+ros2 lifecycle set /controller_server activate
+```
+
+**Costmap Not Updating:**
+```bash
+# Verify costmap is receiving sensor data
+ros2 topic echo /global_costmap/costmap --once
+ros2 topic echo /local_costmap/costmap --once
+
+# Check costmap parameters
+ros2 param get /global_costmap/global_costmap plugins
+ros2 param get /local_costmap/local_costmap plugins
+
+# Force costmap reset
+ros2 service call /global_costmap/clear_entirely_global_costmap nav2_msgs/srv/ClearEntireCostmap
+```
+
+**Multi-Terminal Launch Order Issues:**
+The modular 3-terminal approach requires specific launch order:
+1. **Terminal 1 first**: Robot base must be running before localization
+2. **Terminal 2 second**: Map server and AMCL need `/scan` and `/odom` topics
+3. **Terminal 3 last**: Navigation needs localization to be active
+
+If navigation fails, verify each terminal's nodes are in "active" lifecycle state.
+
+**ROS_DOMAIN_ID Mismatch:**
+```bash
+# Ensure all terminals use same domain
+export ROS_DOMAIN_ID=0  # Add to ~/.bashrc
+
+# Verify domain on Pi and host computer match
+echo $ROS_DOMAIN_ID
 ```
 
 ---

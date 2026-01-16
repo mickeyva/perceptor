@@ -344,6 +344,14 @@ graph LR
     end
 ```
 
+**TF Tree - Basic Teleoperation:**
+![TF Tree Basic Teleoperation](docs/media/images/tf_frames/tf_tree_basic_teleoperation.png)
+*Coordinate frame hierarchy for basic teleoperation: odom→base_link→laser/imu_link. The odom frame provides local odometry reference while sensor frames define LiDAR and IMU mounting.*
+
+**TF Tree - Navigation Stack:**
+![TF Tree Navigation Stack](docs/media/images/tf_frames/tf_tree_navigation_stack.png)
+*Full navigation TF tree: map→odom→base_link→sensor frames. AMCL provides the map→odom transform for global localization, enabling autonomous navigation in the world coordinate frame.*
+
 **Command Priority (twist_mux):**
 
 | Source | Topic | Priority | Timeout | Use Case |
@@ -538,6 +546,10 @@ ros2 topic echo /joy --once
 [![Basic Teleoperation Demo](https://img.youtube.com/vi/rfim3H5mtzY/maxresdefault.jpg)](https://youtube.com/shorts/rfim3H5mtzY)
 *Basic Teleoperation Demo - Nintendo Pro Controller with deadman switch and joystick control*
 
+**ROS Graph - Teleoperation:**
+![ROS Graph Teleoperation](docs/media/images/system_architecture/ros_graph_teleoperation.png)
+*ROS2 node graph showing joystick driver, twist_mux command arbitration, and Create 2 velocity output*
+
 ### Plan (Path Planning)
 
 #### Global Path Planning
@@ -574,6 +586,10 @@ Define no-go areas where the robot should never navigate:
 [![Keepout Zones Demo](https://img.youtube.com/vi/esaRK12SdbA/maxresdefault.jpg)](https://www.youtube.com/watch?v=esaRK12SdbA)
 *Keepout Zones Demo - Robot navigates around defined no-go areas using costmap filters*
 
+**ROS Graph - Keepout Zones:**
+![ROS Graph Keepout Zones](docs/media/images/system_architecture/ros_graph_keepout_zones.png)
+*Costmap filter server integrating keepout mask with Nav2 global costmap to enforce no-go zones*
+
 #### Speed Limit Zones
 
 Define areas with variable maximum speeds:
@@ -592,6 +608,10 @@ Define areas with variable maximum speeds:
 [![Speed Limit Zones Demo](https://img.youtube.com/vi/KDUamMYnVzM/maxresdefault.jpg)](https://www.youtube.com/watch?v=KDUamMYnVzM)
 *Speed Limit Zones Demo - Robot adjusts velocity based on zone-specific speed limits*
 
+**ROS Graph - Speed Filter:**
+![ROS Graph Speed Filter](docs/media/images/system_architecture/ros_graph_speed_filter.png)
+*Speed limit filter server applying velocity constraints based on speed zone mask to Nav2 controller*
+
 ### Act (Execution)
 
 #### Navigation Execution
@@ -601,6 +621,10 @@ The Nav2 behavior tree manages navigation execution with:
 - Recovery behaviors for stuck situations
 - Goal cancellation and replanning
 - Progress monitoring and timeout handling
+
+**ROS Graph - Navigation:**
+![ROS Graph Navigation](docs/media/images/system_architecture/ros_graph_navigation.png)
+*Complete Nav2 stack showing planner, controller, BT navigator, costmaps, and velocity output to twist_mux*
 
 #### Waypoint Following
 
@@ -797,9 +821,6 @@ flowchart LR
 [![Real-time SLAM Mapping Demo](https://img.youtube.com/vi/ATwA-HLwSGA/maxresdefault.jpg)](https://www.youtube.com/watch?v=ATwA-HLwSGA)
 *Real-time SLAM Mapping Demo - Watch the robot build a complete house map in real-time*
 
-### System Architecture Diagrams
-- 🗺️ **[Generated map visualization]** - Example maps created in different environments
-
 ### Package Dependencies
 
 **Build Requirements:**
@@ -885,6 +906,10 @@ flowchart LR
 ### Demonstration Videos
 [![Autonomous Navigation Demo](https://img.youtube.com/vi/_yviKw15OY4/maxresdefault.jpg)](https://www.youtube.com/watch?v=_yviKw15OY4)
 *Autonomous Navigation Demo - AMCL localization with Nav2 path planning*
+
+**ROS Graph - Localization:**
+![ROS Graph Localization](docs/media/images/system_architecture/ros_graph_localization.png)
+*AMCL node with map server, LiDAR input, and TF output showing the localization pipeline*
 
 ### Package Dependencies
 

@@ -67,6 +67,7 @@ ros2 run rviz2 rviz2 -d src/perceptor/config/main.rviz
     - [Component Details](#component-details)
     - [Hardware Connections](#hardware-connections)
     - [create_driver Interface](#create_driver-interface)
+    - [Mechanical Design & CAD Models](#mechanical-design--cad-models)
   - [Software Architecture](#software-architecture)
     - [ROS2 Package Structure](#ros2-package-structure)
     - [Node Topology](#node-topology)
@@ -219,6 +220,34 @@ The `create_driver` package provides the ROS 2 interface to the iRobot Create 2:
 - `/dock` - Navigate to charging dock
 - `/undock` - Leave charging dock
 - `/reset` - Reset robot state
+
+#### Mechanical Design & CAD Models
+
+The Perceptor robot integrates commercial off-the-shelf components with custom 3D-printed mounts designed in Fusion 360. All sensor mounts are optimized for rigidity and thermal management while maintaining modularity for component upgrades.
+
+**Complete Robot Assembly:**
+
+![Complete Robot Assembly](docs/media/images/hardware/complete_assembly.png)
+*Fully assembled Perceptor robot showing iRobot Create 2 base, Raspberry Pi 5 compute platform, RPLiDAR, IMU, and USB camera integration*
+
+**Component CAD Models:**
+
+| Component | CAD Render |
+|-----------|------------|
+| **iRobot Create 2 Base** | ![iRobot Create 2](docs/media/images/hardware/irobot_create2_base.png) |
+| **Raspberry Pi 5 with Heat Sink** | ![Raspberry Pi 5](docs/media/images/hardware/raspberry_pi5_heatsink.png) |
+
+*Mobile platform base and compute unit with passive cooling for headless operation*
+
+**Sensor Mount Configurations:**
+
+| Configuration | CAD Render |
+|---------------|------------|
+| **LiDAR + Camera** | ![LiDAR and Camera Mount](docs/media/images/hardware/lidar_camera_mount.png) |
+| **IMU + Camera** | ![IMU and Camera Mount](docs/media/images/hardware/imu_camera_mount.png) |
+| **LiDAR + IMU + Camera** | ![Full Sensor Assembly](docs/media/images/hardware/lidar_imu_camera_assembly.png) |
+
+*Modular sensor mounting configurations showing various integration options for perception stack*
 
 ### Software Architecture
 
@@ -818,7 +847,7 @@ flowchart LR
 - Map serialization for persistent storage
 
 ### Demonstration Videos
-[![Real-time SLAM Mapping Demo](https://img.youtube.com/vi/ATwA-HLwSGA/maxresdefault.jpg)](https://www.youtube.com/watch?v=ATwA-HLwSGA)
+[![Real-time SLAM Mapping Demo](https://img.youtube.com/vi/ATwA-HLwSGA/hqdefault.jpg)](https://www.youtube.com/watch?v=ATwA-HLwSGA)
 *Real-time SLAM Mapping Demo - Watch the robot build a complete house map in real-time*
 
 ### Package Dependencies

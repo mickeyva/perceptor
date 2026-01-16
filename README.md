@@ -80,12 +80,8 @@ ros2 run rviz2 rviz2 -d src/perceptor/config/main.rviz
     - [Camera Integration](#camera-integration)
     - [Joystick Control](#joystick-control)
   - **Plan**
-    - [Global Path Planning](#global-path-planning)
-    - [Local Path Planning](#local-path-planning)
-    - [Keepout Zones](#keepout-zones)
-    - [Speed Limit Zones](#speed-limit-zones)
+    - [Path Planning Overview](#path-planning-overview)
   - **Act**
-    - [Navigation Execution](#navigation-execution)
     - [Waypoint Following](#waypoint-following)
     - [Collision Monitoring](#collision-monitoring)
     - [Visual Servoing](#visual-servoing)
@@ -101,6 +97,12 @@ ros2 run rviz2 rviz2 -d src/perceptor/config/main.rviz
   - [Demonstration Videos](#demonstration-videos)
   - [Package Dependencies](#package-dependencies-1)
   - [Launch File Usage](#launch-file-usage)
+  - [Algorithm Deep Dive](#algorithm-deep-dive)
+    - [Scan Matching](#scan-matching)
+    - [Graph-Based SLAM & Pose Graph Optimization](#graph-based-slam--pose-graph-optimization)
+    - [Loop Closure Detection](#loop-closure-detection)
+    - [Solver Modes](#solver-modes)
+  - [Alternative SLAM Methods](#alternative-slam-methods)
 
 - **[5. Localization (AMCL)](#5-localization-amcl)**
   - [Overview](#overview)
@@ -110,12 +112,36 @@ ros2 run rviz2 rviz2 -d src/perceptor/config/main.rviz
   - [Launch File Usage](#launch-file-usage-1)
   - [AMCL Configuration](#amcl-configuration)
 
-- **[6. Getting Started](#6-getting-started)**
+- **[6. Nav2 Navigation Stack](#6-nav2-navigation-stack)**
+  - [Architecture Overview](#architecture-overview)
+    - [Server-Plugin System](#server-plugin-system)
+    - [Behavior Tree Navigator](#behavior-tree-navigator)
+  - [Global Planning](#global-planning)
+    - [NavFn Planner](#navfn-planner)
+    - [SmacPlanner2D](#smacplanner2d)
+    - [Planner Comparison](#planner-comparison)
+  - [Local Control](#local-control)
+    - [MPPI Controller](#mppi-controller)
+    - [Regulated Pure Pursuit (RPP)](#regulated-pure-pursuit-rpp)
+    - [Controller Comparison](#controller-comparison)
+    - [Goal and Progress Checkers](#goal-and-progress-checkers)
+  - [Costmaps](#costmaps)
+    - [Global Costmap](#global-costmap)
+    - [Local Costmap](#local-costmap)
+  - [Costmap Filters](#costmap-filters)
+    - [Keepout Zones](#keepout-zones)
+    - [Speed Limit Zones](#speed-limit-zones)
+  - [Recovery Behaviors](#recovery-behaviors)
+  - [Behavior Tree Flow](#behavior-tree-flow)
+    - [Complete Flow Example](#complete-flow-example)
+    - [Runtime Algorithm Selection](#runtime-algorithm-selection)
+
+- **[7. Getting Started](#7-getting-started)**
   - [Prerequisites](#prerequisites)
   - [Complete Installation Guide](#complete-installation-guide)
   - [Quick Launch Guide](#quick-launch-guide)
 
-- **[7. Troubleshooting](#7-troubleshooting)**
+- **[8. Troubleshooting](#8-troubleshooting)**
   - [Common Hardware Issues](#common-hardware-issues)
   - [Software Debugging](#software-debugging)
   - [Integration Challenges](#integration-challenges)
@@ -581,79 +607,27 @@ ros2 topic echo /joy --once
 
 ### Plan (Path Planning)
 
-#### Global Path Planning
+#### Path Planning Overview
 
-| Parameter | Value |
-|-----------|-------|
-| **Planner** | NavFn (Dijkstra's algorithm) |
-| **Costmap** | Global costmap with static map layer |
-| **Resolution** | 0.05 m/cell |
-| **Inflation Radius** | 0.25 m |
+Path planning is handled by the Nav2 Navigation Stack, which provides:
 
-#### Local Path Planning
+| Component | Algorithm | Purpose |
+|-----------|-----------|---------|
+| **Global Planner** | NavFn (Dijkstra) | Compute optimal path from start to goal |
+| **Local Controller** | MPPI | Follow path while avoiding dynamic obstacles |
+| **Costmaps** | Layered costmaps | Represent obstacles and traversability |
+| **Costmap Filters** | Keepout/Speed zones | Enforce navigation constraints |
 
-| Parameter | Value |
-|-----------|-------|
-| **Controller** | MPPI (Model Predictive Path Integral) |
-| **Frequency** | 20 Hz |
-| **Time Horizon** | 56 steps × 0.05s = 2.8s lookahead |
-| **Goal Tolerance** | 0.25 m (XY), 0.25 rad (yaw) |
-
-#### Keepout Zones
-
-Define no-go areas where the robot should never navigate:
-
-```yaml
-# Keepout zone mask (grayscale image)
-# Black pixels = forbidden areas (infinite cost)
-# White pixels = traversable areas
-```
-
-**Launch:** `ros2 launch perceptor keepout_extension.launch.py`
-
-**Demonstration Video:**
-[![Keepout Zones Demo](https://img.youtube.com/vi/esaRK12SdbA/maxresdefault.jpg)](https://www.youtube.com/watch?v=esaRK12SdbA)
-*Keepout Zones Demo - Robot navigates around defined no-go areas using costmap filters*
-
-**ROS Graph - Keepout Zones:**
-![ROS Graph Keepout Zones](docs/media/images/system_architecture/ros_graph_keepout_zones.png)
-*Costmap filter server integrating keepout mask with Nav2 global costmap to enforce no-go zones*
-
-#### Speed Limit Zones
-
-Define areas with variable maximum speeds:
-
-| Grayscale Value | Speed Multiplier | Use Case |
-|-----------------|------------------|----------|
-| 255 (White) | 1.0× (full speed) | Open areas |
-| 192 | 0.75× | Moderate caution |
-| 128 | 0.50× | Careful zones |
-| 64 | 0.25× | Very slow zones |
-| 0 (Black) | 0.1× | Minimum speed |
-
-**Launch:** `ros2 launch perceptor speed_extension.launch.py`
-
-**Demonstration Video:**
-[![Speed Limit Zones Demo](https://img.youtube.com/vi/KDUamMYnVzM/maxresdefault.jpg)](https://www.youtube.com/watch?v=KDUamMYnVzM)
-*Speed Limit Zones Demo - Robot adjusts velocity based on zone-specific speed limits*
-
-**ROS Graph - Speed Filter:**
-![ROS Graph Speed Filter](docs/media/images/system_architecture/ros_graph_speed_filter.png)
-*Speed limit filter server applying velocity constraints based on speed zone mask to Nav2 controller*
+> 📖 **See [Section 6: Nav2 Navigation Stack](#6-nav2-navigation-stack)** for detailed documentation on:
+> - Global and local planning algorithms
+> - Costmap configuration and layers
+> - Keepout zones and speed limit zones
+> - Behavior tree orchestration
+> - Recovery behaviors
 
 ### Act (Execution)
 
-#### Navigation Execution
-
-The Nav2 behavior tree manages navigation execution with:
-- Path following with obstacle avoidance
-- Recovery behaviors for stuck situations
-- Goal cancellation and replanning
-- Progress monitoring and timeout handling
-
-**ROS Graph - Navigation:**
-![ROS Graph Navigation](docs/media/images/system_architecture/ros_graph_navigation.png)
-*Complete Nav2 stack showing planner, controller, BT navigator, costmaps, and velocity output to twist_mux*
+Execution components handle robot motion that doesn't use the full Nav2 stack. For autonomous navigation, see [Section 6: Nav2 Navigation Stack](#6-nav2-navigation-stack).
 
 #### Waypoint Following
 
@@ -896,6 +870,115 @@ ros2 launch slam_toolbox online_async_launch.py slam_params_file:=/home/pi/Roomb
 - `scan_topic`: LiDAR data topic (default: /scan)
 - `resolution`: Map resolution in meters/pixel (default: 0.05)
 
+### Algorithm Deep Dive
+
+> 📖 **Documentation:** [slam_toolbox README](https://github.com/SteveMacenski/slam_toolbox)
+
+slam_toolbox uses **Karto SLAM**, a graph-based SLAM algorithm originally developed by SRI International. Understanding its internals helps with parameter tuning and debugging.
+
+#### Scan Matching
+
+Scan matching aligns new laser scans with existing map data to estimate robot motion.
+
+| Component | Description |
+|-----------|-------------|
+| **Correlative Scan Matcher** | Brute-force search over translation/rotation space |
+| **Response Function** | Measures scan-to-map alignment quality |
+| **Multi-Resolution** | Coarse-to-fine search for efficiency |
+| **Outlier Rejection** | Filters spurious scan points |
+
+**Process:**
+1. Robot receives new laser scan
+2. Correlative matcher searches for best alignment with local map
+3. Match quality (response) determines confidence
+4. High-confidence matches create new pose graph nodes
+
+**Key Parameters:**
+```yaml
+# Scan matching parameters
+minimum_travel_distance: 0.5      # Min distance before adding new node
+minimum_travel_heading: 0.5       # Min rotation before adding new node
+scan_buffer_size: 10              # Scans to buffer for matching
+link_match_minimum_response_fine: 0.1  # Min response for valid match
+```
+
+#### Graph-Based SLAM & Pose Graph Optimization
+
+slam_toolbox maintains a **pose graph** where:
+- **Nodes** = Robot poses at discrete time steps
+- **Edges** = Constraints from odometry and scan matching
+
+```mermaid
+flowchart LR
+    subgraph PoseGraph["Pose Graph"]
+        P1((P1)) -->|odom| P2((P2))
+        P2 -->|odom| P3((P3))
+        P3 -->|odom| P4((P4))
+        P4 -->|odom| P5((P5))
+        P1 -.->|loop closure| P5
+    end
+    subgraph Optimizer["Sparse Pose Adjustment"]
+        SPA["Ceres Solver<br/>Minimizes edge errors"]
+    end
+    PoseGraph --> SPA
+    SPA -->|corrected poses| PoseGraph
+```
+
+**Sparse Pose Adjustment (SPA):**
+- Uses Ceres Solver for nonlinear least squares optimization
+- Minimizes error between predicted and observed constraints
+- Runs incrementally as new nodes are added
+- Full optimization triggered by loop closures
+
+#### Loop Closure Detection
+
+Loop closure detects when the robot returns to a previously visited location, correcting accumulated drift.
+
+| Stage | Method |
+|-------|--------|
+| **Candidate Selection** | Spatial proximity search in pose graph |
+| **Scan Matching** | Correlative matcher validates candidates |
+| **Constraint Addition** | Valid matches add edges to pose graph |
+| **Graph Optimization** | SPA redistributes error across all poses |
+
+**Key Parameters:**
+```yaml
+# Loop closure parameters
+loop_search_maximum_distance: 3.0   # Max distance to search for loops
+do_loop_closing: true               # Enable/disable loop closure
+loop_match_minimum_chain_size: 10   # Min nodes in chain for loop
+loop_match_maximum_variance_coarse: 3.0  # Variance threshold
+```
+
+#### Solver Modes
+
+slam_toolbox offers three operational modes:
+
+| Mode | Use Case | Behavior |
+|------|----------|----------|
+| **`mapping`** | Initial map creation | Full SLAM with loop closure, graph grows continuously |
+| **`localization`** | Navigate existing map | Graph frozen, only pose estimation against loaded map |
+| **`lifelong`** | Long-term operation | Bounded graph size, old nodes pruned, continuous updates |
+
+**Mode Selection:**
+```yaml
+# In mapper_params_online_async.yaml
+mode: mapping  # Options: mapping, localization, lifelong
+```
+
+### Alternative SLAM Methods
+
+This project uses slam_toolbox, but other SLAM packages are available in ROS 2. Here's a comparison to help understand the design choice:
+
+| Package | Type | Sensors | Pros | Cons | Use Case |
+|---------|------|---------|------|------|----------|
+| **[slam_toolbox](https://github.com/SteveMacenski/slam_toolbox)** *(used)* | 2D Graph | Lidar | Lightweight, ROS2 native, well-maintained | 2D only | Indoor mobile robots |
+| **[Cartographer](https://github.com/cartographer-project/cartographer_ros)** | 2D/3D Submap | Lidar + IMU | Google-backed, handles large maps, 3D capable | Complex config, heavier compute | Large-scale mapping |
+| **[RTAB-Map](https://github.com/introlab/rtabmap_ros)** | Visual + Lidar | RGB-D, Stereo, Lidar | Rich 3D maps, multi-sensor fusion, appearance-based loop closure | Memory intensive, requires camera | Visual navigation, 3D reconstruction |
+| **[LIO-SAM](https://github.com/TixiaoShan/LIO-SAM)** | 3D Lidar-Inertial | 3D Lidar + IMU | Highly accurate, tightly-coupled IMU | Requires 3D lidar + IMU, outdoor focus | Autonomous vehicles, drones |
+
+> 💡 **Why slam_toolbox?** For indoor 2D navigation with a 2D lidar, slam_toolbox provides the best balance of accuracy, performance, and ease of use. It's the default SLAM package recommended by the Nav2 maintainers.
+
 ---
 
 ## 5. Localization (AMCL)
@@ -988,7 +1071,581 @@ amcl:
 
 ---
 
-## 6. Getting Started
+## 6. Nav2 Navigation Stack
+
+The Nav2 (Navigation2) stack provides autonomous navigation capabilities including path planning, trajectory following, and recovery behaviors. This section documents the complete navigation architecture.
+
+**Documentation Links:**
+- [Nav2 Official Documentation](https://docs.nav2.org/)
+- [Nav2 Server & Plugin Configuration](https://docs.nav2.org/configuration/index.html)
+- [Nav2-Specific BT Nodes](https://docs.nav2.org/behavior_trees/overview/nav2_specific_nodes.html)
+- [Detailed BT Walkthrough](https://docs.nav2.org/behavior_trees/overview/detailed_behavior_tree_walkthrough.html)
+- [Complete BT Nodes Catalog](https://docs.nav2.org/plugins/index.html#behavior-tree-nodes)
+
+### Architecture Overview
+
+Nav2 uses a modular server-plugin architecture where behavior trees orchestrate navigation by coordinating specialized servers through ROS2 action clients.
+
+**Key Concepts:**
+- **BT Nodes** = Action clients that send goals to servers
+- **Servers** = Host plugins loaded via `pluginlib`
+- **Plugin IDs** (e.g., "FollowPath", "GridBased") = Keys to look up actual plugin classes in `nav2_params.yaml`
+- **Selector Topics** = Enable runtime switching of algorithms (e.g., `/controller_selector`, `/planner_selector`)
+
+**ROS Graph - Navigation:**
+![ROS Graph Navigation](docs/media/images/system_architecture/ros_graph_navigation.png)
+*Complete Nav2 stack showing planner, controller, BT navigator, costmaps, and velocity output to twist_mux*
+
+#### Server-Plugin System
+
+Nav2 uses a server-plugin architecture where each server loads algorithm implementations at runtime:
+
+```mermaid
+flowchart TB
+    subgraph BT_Navigator["🌳 BT Navigator"]
+        BT_XML["Behavior Tree XML<br/>navigate_to_pose_w_replanning_and_recovery.xml"]
+    end
+
+    subgraph BT_Nodes["📦 Behavior Tree Nodes"]
+        subgraph Selectors["Selector Nodes"]
+            PS["PlannerSelector<br/>subscribes: /planner_selector<br/>default: GridBased"]
+            CS["ControllerSelector<br/>subscribes: /controller_selector<br/>default: FollowPath"]
+            GCS["GoalCheckerSelector"]
+            PCS["ProgressCheckerSelector"]
+        end
+        subgraph Actions["Action Nodes"]
+            CPTP["ComputePathToPose<br/>→ compute_path_to_pose action"]
+            FP["FollowPath<br/>→ follow_path action"]
+        end
+    end
+
+    subgraph Servers["🖥️ Nav2 Servers"]
+        subgraph Planner_Server["Planner Server"]
+            PS_Action["Action: /compute_path_to_pose"]
+            PS_Plugins["Plugin Loader<br/>nav2_core::GlobalPlanner"]
+        end
+        subgraph Controller_Server["Controller Server"]
+            CS_Action["Action: /follow_path"]
+            CS_Plugins["Plugin Loaders:<br/>• nav2_core::Controller<br/>• nav2_core::GoalChecker<br/>• nav2_core::ProgressChecker"]
+        end
+        subgraph Behavior_Server["Behavior Server"]
+            BS_Actions["Actions: /spin, /backup, /wait"]
+            BS_Plugins["nav2_core::Behavior"]
+        end
+        subgraph Smoother_Server["Smoother Server"]
+            SM_Action["Action: /smooth_path"]
+            SM_Plugins["nav2_core::Smoother"]
+        end
+    end
+
+    subgraph Plugins["🔌 Plugins"]
+        GP["GlobalPlanner<br/>• NavfnPlanner (Dijkstra)<br/>• SmacPlanner2D (A*)<br/>• SmacPlannerHybrid"]
+        CTRL["Controller<br/>• MPPIController<br/>• DWBLocalPlanner<br/>• RegulatedPurePursuit"]
+        GC["GoalChecker<br/>• SimpleGoalChecker<br/>• StoppedGoalChecker"]
+        BH["Behaviors<br/>• Spin<br/>• BackUp<br/>• Wait"]
+    end
+
+    subgraph Resources["🗺️ Resources"]
+        Costmaps["Costmaps<br/>• Global (planner)<br/>• Local (controller)"]
+        TF["TF2 Transforms"]
+    end
+
+    BT_XML --> PS & CS & GCS & PCS
+    PS -->|"selected_planner"| CPTP
+    CS -->|"selected_controller"| FP
+
+    CPTP -->|"ROS2 Action"| PS_Action
+    FP -->|"ROS2 Action"| CS_Action
+
+    PS_Action --> PS_Plugins --> GP
+    CS_Action --> CS_Plugins --> CTRL & GC
+    BS_Actions --> BS_Plugins --> BH
+    SM_Action --> SM_Plugins
+
+    GP --> Costmaps
+    CTRL --> Costmaps
+    GP --> TF
+    CTRL --> TF
+
+    classDef selector fill:#9b59b6,color:#fff
+    classDef action fill:#3498db,color:#fff
+    classDef server fill:#27ae60,color:#fff
+    classDef plugin fill:#f39c12,color:#000
+    classDef resource fill:#e74c3c,color:#fff
+
+    class PS,CS,GCS,PCS selector
+    class CPTP,FP action
+    class Planner_Server,Controller_Server,Behavior_Server,Smoother_Server server
+    class GP,CTRL,GC,BH plugin
+    class Costmaps,TF resource
+```
+
+**Server-Costmap Relationships:**
+
+| Server | Costmap | Purpose |
+|--------|---------|---------|
+| **Planner Server** | Global Costmap | Full environment map for path planning |
+| **Controller Server** | Local Costmap | Real-time obstacle detection for path following |
+| **Smoother Server** | Global Costmap | Post-processes paths for smoothness |
+| **Behavior Server** | Both costmaps | Recovery behaviors like backup/spin |
+
+#### Behavior Tree Navigator
+
+The BT Navigator loads behavior tree XML files that define navigation logic. The default tree (`navigate_to_pose_w_replanning_and_recovery.xml`) handles:
+- Continuous path replanning at 1 Hz
+- Path following with obstacle avoidance
+- Context-aware recovery (clear costmaps when stuck)
+- Full recovery sequence (spin, wait, backup)
+
+### Global Planning
+
+#### NavFn Planner
+
+> 📖 **Documentation:** [nav2_navfn_planner README](https://github.com/ros-navigation/navigation2/blob/main/nav2_navfn_planner/README.md)
+
+The NavFn planner computes global paths using graph search algorithms on the global costmap.
+
+| Parameter | Value |
+|-----------|-------|
+| **Plugin** | `nav2_navfn_planner::NavfnPlanner` |
+| **Algorithm** | Dijkstra (default) or A* |
+| **Costmap** | Global costmap with static map layer |
+| **Resolution** | 0.05 m/cell |
+| **Tolerance** | 0.5 m (goal tolerance) |
+
+**Algorithm Details:**
+- **Dijkstra's Algorithm**: Explores all directions equally, guarantees optimal path
+- **A* (optional)**: Uses heuristic for faster computation, set `use_astar: true`
+- **Wavefront Propagation**: Expands from goal, assigns cost to each cell
+- **Path Extraction**: Traces gradient from start to goal
+
+**Configuration (nav2_params.yaml):**
+```yaml
+planner_server:
+  ros__parameters:
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_navfn_planner::NavfnPlanner"
+      tolerance: 0.5
+      use_astar: false
+      allow_unknown: true
+```
+
+#### SmacPlanner2D
+
+> 📖 **Documentation:** [nav2_smac_planner README](https://github.com/ros-navigation/navigation2/blob/main/nav2_smac_planner/README.md)
+
+SmacPlanner2D is an A*-based planner optimized for 2D grid search, often faster than NavFn for large maps.
+
+| Parameter | Value |
+|-----------|-------|
+| **Plugin** | `nav2_smac_planner::SmacPlanner2D` |
+| **Algorithm** | A* with 8-connected grid |
+| **Heuristic** | Euclidean distance |
+| **Smoothing** | Built-in path smoothing |
+
+**Algorithm Details:**
+- **A* Search**: Uses priority queue with f(n) = g(n) + h(n)
+- **8-Connected Grid**: Allows diagonal movement (vs 4-connected)
+- **Analytic Expansions**: Attempts direct goal connection
+- **Downsampling**: Optional resolution reduction for speed
+
+**Configuration (nav2_params.yaml):**
+```yaml
+planner_server:
+  ros__parameters:
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_smac_planner::SmacPlanner2D"
+      tolerance: 0.25
+      downsample_costmap: false
+      allow_unknown: true
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 5.0
+      smooth_path: true
+```
+
+#### Planner Comparison
+
+| Feature | NavFn | SmacPlanner2D | Theta* |
+|---------|-------|---------------|--------|
+| **Algorithm** | Dijkstra/A* | A* | Any-Angle A* |
+| **Path Quality** | Grid-aligned | Grid-aligned | Smooth, any-angle |
+| **Speed (large maps)** | Slower | Faster | Moderate |
+| **Memory** | Higher | Lower | Moderate |
+| **Smoothing** | External | Built-in | Inherent |
+| **Best For** | Simple environments | Large maps, speed-critical | Smooth paths, open areas |
+
+> 💡 **Recommendation:** Use **NavFn** for simplicity and proven reliability. Switch to **SmacPlanner2D** if planning time becomes a bottleneck on large maps.
+
+### Local Control
+
+#### MPPI Controller
+
+> 📖 **Documentation:** [nav2_mppi_controller README](https://github.com/ros-navigation/navigation2/blob/main/nav2_mppi_controller/README.md)
+
+The Model Predictive Path Integral (MPPI) controller follows the global path while avoiding dynamic obstacles.
+
+| Parameter | Value |
+|-----------|-------|
+| **Plugin** | `nav2_mppi_controller::MPPIController` |
+| **Frequency** | 20 Hz |
+| **Time Steps** | 56 steps × 0.05s = 2.8s lookahead |
+| **Batch Size** | 2000 trajectory samples |
+| **Motion Model** | Differential Drive |
+
+**Algorithm Details:**
+- **Sampling-Based MPC**: Generates thousands of candidate trajectories
+- **Cost Function**: Weighted sum of path following, obstacle avoidance, goal alignment
+- **Information-Theoretic**: Uses path integral formulation for trajectory optimization
+- **GPU Acceleration**: Optional CUDA support for real-time performance
+
+**Configuration (nav2_params.yaml):**
+```yaml
+controller_server:
+  ros__parameters:
+    controller_plugins: ["FollowPath"]
+    FollowPath:
+      plugin: "nav2_mppi_controller::MPPIController"
+      time_steps: 56
+      model_dt: 0.05
+      batch_size: 2000
+      vx_std: 0.2
+      vy_std: 0.0
+      wz_std: 0.4
+      vx_max: 0.5
+      vx_min: -0.35
+      wy_max: 1.9
+      iteration_count: 1
+      temperature: 0.3
+      motion_model: "DiffDrive"
+```
+
+#### Regulated Pure Pursuit (RPP)
+
+> 📖 **Documentation:** [nav2_regulated_pure_pursuit_controller README](https://github.com/ros-navigation/navigation2/blob/main/nav2_regulated_pure_pursuit_controller/README.md)
+
+RPP is a geometric path-following controller that's simpler and more predictable than MPPI, ideal for constrained environments.
+
+| Parameter | Value |
+|-----------|-------|
+| **Plugin** | `nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController` |
+| **Algorithm** | Pure pursuit with adaptive lookahead |
+| **Regulation** | Curvature-based and proximity-based speed limits |
+| **Complexity** | Low (deterministic, no sampling) |
+
+**Algorithm Details:**
+- **Pure Pursuit**: Tracks a "carrot" point on the path at lookahead distance
+- **Curvature Regulation**: Slows down for sharp turns
+- **Proximity Regulation**: Slows near obstacles
+- **Adaptive Lookahead**: Adjusts based on velocity
+
+**Configuration (nav2_params.yaml):**
+```yaml
+controller_server:
+  ros__parameters:
+    controller_plugins: ["FollowPath"]
+    FollowPath:
+      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      desired_linear_vel: 0.5
+      lookahead_dist: 0.6
+      min_lookahead_dist: 0.3
+      max_lookahead_dist: 0.9
+      lookahead_time: 1.5
+      rotate_to_heading_angular_vel: 1.8
+      use_velocity_scaled_lookahead_dist: true
+      use_regulated_linear_velocity_scaling: true
+      use_cost_regulated_linear_velocity_scaling: true
+      regulated_linear_scaling_min_radius: 0.9
+      regulated_linear_scaling_min_speed: 0.25
+```
+
+#### Controller Comparison
+
+| Feature | MPPI | Regulated Pure Pursuit | DWB |
+|---------|------|------------------------|-----|
+| **Algorithm** | Sampling-based MPC | Geometric pursuit | Dynamic Window |
+| **Compute** | High (2000+ samples) | Low (deterministic) | Medium |
+| **Obstacle Avoidance** | Excellent (predictive) | Good (reactive) | Good (velocity space) |
+| **Path Following** | Excellent | Excellent | Good |
+| **Tuning Complexity** | High (many params) | Low | Medium |
+| **GPU Support** | Yes (optional) | No | No |
+| **Best For** | Dynamic environments, complex maneuvers | Predictable paths, constrained platforms | General purpose |
+
+> 💡 **Recommendation:** Use **MPPI** for dynamic environments with moving obstacles. Use **RPP** for simpler scenarios where predictable behavior and low compute are priorities.
+
+#### Goal and Progress Checkers
+
+**SimpleGoalChecker:**
+- Checks if robot is within tolerance of goal pose
+- Parameters: `xy_goal_tolerance: 0.25`, `yaw_goal_tolerance: 0.25`
+
+**SimpleProgressChecker:**
+- Detects if robot is stuck (no progress over time)
+- Parameters: `required_movement_radius: 0.5`, `movement_time_allowance: 10.0`
+
+### Costmaps
+
+Costmaps represent the environment as 2D grids where each cell has a cost value indicating traversability.
+
+#### Global Costmap
+
+Used by the planner for computing paths across the entire known environment.
+
+| Parameter | Value |
+|-----------|-------|
+| **Update Frequency** | 1.0 Hz |
+| **Resolution** | 0.05 m/cell |
+| **Width/Height** | Matches loaded map |
+| **Frame** | `map` |
+
+**Layers:**
+- `static_layer`: Loads occupancy grid from map server
+- `obstacle_layer`: Adds sensor-detected obstacles
+- `inflation_layer`: Inflates obstacles by robot radius (0.25m)
+
+#### Local Costmap
+
+Used by the controller for real-time obstacle avoidance.
+
+| Parameter | Value |
+|-----------|-------|
+| **Update Frequency** | 5.0 Hz |
+| **Resolution** | 0.05 m/cell |
+| **Width/Height** | 3.0m × 3.0m rolling window |
+| **Frame** | `odom` |
+
+**Layers:**
+- `voxel_layer`: 3D obstacle detection from sensors
+- `inflation_layer`: Inflates obstacles for safety margin
+
+### Costmap Filters
+
+Costmap filters modify navigation behavior based on spatial regions defined in filter masks.
+
+#### Keepout Zones
+
+Define no-go areas where the robot should never navigate:
+
+| Mask Value | Meaning |
+|------------|---------|
+| Black (0) | Forbidden area (infinite cost) |
+| White (255) | Traversable area |
+
+**Launch:** `ros2 launch perceptor keepout_extension.launch.py`
+
+**Demonstration Video:**
+[![Keepout Zones Demo](https://img.youtube.com/vi/esaRK12SdbA/maxresdefault.jpg)](https://www.youtube.com/watch?v=esaRK12SdbA)
+*Keepout Zones Demo - Robot navigates around defined no-go areas using costmap filters*
+
+**ROS Graph - Keepout Zones:**
+![ROS Graph Keepout Zones](docs/media/images/system_architecture/ros_graph_keepout_zones.png)
+*Costmap filter server integrating keepout mask with Nav2 global costmap to enforce no-go zones*
+
+#### Speed Limit Zones
+
+Define areas with variable maximum speeds:
+
+| Grayscale Value | Speed Multiplier | Use Case |
+|-----------------|------------------|----------|
+| 255 (White) | 1.0× (full speed) | Open areas |
+| 192 | 0.75× | Moderate caution |
+| 128 | 0.50× | Careful zones |
+| 64 | 0.25× | Very slow zones |
+| 0 (Black) | 0.1× | Minimum speed |
+
+**Launch:** `ros2 launch perceptor speed_extension.launch.py`
+
+**Demonstration Video:**
+[![Speed Limit Zones Demo](https://img.youtube.com/vi/KDUamMYnVzM/maxresdefault.jpg)](https://www.youtube.com/watch?v=KDUamMYnVzM)
+*Speed Limit Zones Demo - Robot adjusts velocity based on zone-specific speed limits*
+
+**ROS Graph - Speed Filter:**
+![ROS Graph Speed Filter](docs/media/images/system_architecture/ros_graph_speed_filter.png)
+*Speed limit filter server applying velocity constraints based on speed zone mask to Nav2 controller*
+
+### Recovery Behaviors
+
+When navigation fails, the behavior tree triggers recovery behaviors to unstick the robot.
+
+| Behavior | Plugin | Action | Parameters |
+|----------|--------|--------|------------|
+| **Spin** | `nav2_behaviors::Spin` | Rotate in place | 90° (1.57 rad), max 1.0 rad/s |
+| **BackUp** | `nav2_behaviors::BackUp` | Drive backwards | 0.30m at 0.15 m/s |
+| **Wait** | `nav2_behaviors::Wait` | Pause execution | 5.0 seconds |
+| **ClearCostmap** | Service call | Reset costmap layers | Global or local |
+
+**Recovery Sequence:**
+1. Clear local costmap (controller failure)
+2. Clear global costmap (planner failure)
+3. Round-robin: Spin → Wait → BackUp
+
+**Configuration:**
+```yaml
+behavior_server:
+  ros__parameters:
+    behavior_plugins: ["spin", "backup", "wait"]
+    spin:
+      plugin: "nav2_behaviors::Spin"
+    backup:
+      plugin: "nav2_behaviors::BackUp"
+    wait:
+      plugin: "nav2_behaviors::Wait"
+```
+
+### Behavior Tree Flow
+
+The navigation stack uses the default `navigate_to_pose_w_replanning_and_recovery.xml` behavior tree:
+
+```mermaid
+flowchart TB
+    subgraph MainTree["🌳 MainTree"]
+        NR["RecoveryNode<br/><i>NavigateRecovery</i><br/>retries: 6"]
+
+        subgraph Primary["Primary Navigation"]
+            PS["PipelineSequence<br/><i>NavigateWithReplanning</i>"]
+            CS["ControllerSelector<br/>default: FollowPath"]
+            PLS["PlannerSelector<br/>default: GridBased"]
+            GCS["GoalCheckerSelector"]
+            PCS["ProgressCheckerSelector"]
+
+            subgraph Planning["Path Planning @ 1Hz"]
+                RC["RateController<br/>hz: 1.0"]
+                RN1["RecoveryNode<br/><i>ComputePathToPose</i><br/>retries: 1"]
+                CPP["ComputePathToPose"]
+                SEQ1["Sequence"]
+                WAPRH["WouldAPlannerRecoveryHelp"]
+                CGC1["ClearGlobalCostmap"]
+            end
+
+            subgraph Control["Path Following"]
+                RN2["RecoveryNode<br/><i>FollowPath</i><br/>retries: 1"]
+                FP["FollowPath"]
+                SEQ2["Sequence"]
+                WACRH["WouldAControllerRecoveryHelp"]
+                CLC1["ClearLocalCostmap"]
+            end
+        end
+
+        subgraph Recovery["Recovery Subtree"]
+            SEQ3["Sequence"]
+            FB1["Fallback"]
+            WACRH2["WouldAControllerRecoveryHelp"]
+            WAPRH2["WouldAPlannerRecoveryHelp"]
+
+            subgraph RecoveryActions["Recovery Actions"]
+                RFB["ReactiveFallback"]
+                GU["GoalUpdated"]
+                RR["RoundRobin"]
+                SEQ4["ClearingActions"]
+                CLC2["ClearLocalCostmap"]
+                CGC2["ClearGlobalCostmap"]
+                SPIN["Spin 90°"]
+                WAIT["Wait 5s"]
+                BACKUP["BackUp 0.3m"]
+            end
+        end
+    end
+
+    NR --> PS
+    NR --> SEQ3
+
+    PS --> CS & PLS & GCS & PCS
+    PS --> RC
+    PS --> RN2
+
+    RC --> RN1
+    RN1 --> CPP
+    RN1 --> SEQ1
+    SEQ1 --> WAPRH --> CGC1
+
+    RN2 --> FP
+    RN2 --> SEQ2
+    SEQ2 --> WACRH --> CLC1
+
+    SEQ3 --> FB1 --> RFB
+    FB1 --> WACRH2
+    FB1 --> WAPRH2
+
+    RFB --> GU
+    RFB --> RR
+
+    RR --> SEQ4 --> CLC2 --> CGC2
+    RR --> SPIN
+    RR --> WAIT
+    RR --> BACKUP
+
+    classDef control fill:#9b59b6,color:#fff
+    classDef action fill:#3498db,color:#fff
+    classDef condition fill:#2ecc71,color:#fff
+    classDef decorator fill:#e67e22,color:#fff
+
+    class NR,PS,SEQ1,SEQ2,SEQ3,SEQ4,FB1,RFB,RR control
+    class CPP,FP,CGC1,CGC2,CLC1,CLC2,SPIN,WAIT,BACKUP,CS,PLS,GCS,PCS action
+    class WAPRH,WACRH,WACRH2,WAPRH2,GU condition
+    class RC decorator
+```
+
+**Node Type Legend:**
+
+| Color | Node Type | Examples | Behavior |
+|-------|-----------|----------|----------|
+| 🟣 Purple | **Control** | RecoveryNode, PipelineSequence, Sequence, Fallback, RoundRobin | Orchestrate child execution order and success/failure logic |
+| 🔵 Blue | **Action** | ComputePathToPose, FollowPath, Spin, BackUp, Wait, Selectors | Execute tasks via ROS2 action clients or set blackboard values |
+| 🟢 Green | **Condition** | WouldAPlannerRecoveryHelp, WouldAControllerRecoveryHelp, GoalUpdated | Check conditions and return SUCCESS/FAILURE |
+| 🟠 Orange | **Decorator** | RateController | Modify child behavior (e.g., throttle execution rate) |
+
+#### Complete Flow Example
+
+When `NavigateToPose` action is called:
+
+1. **BT Navigator** loads the XML and starts ticking the tree
+
+2. **Selector nodes** execute:
+   - `PlannerSelector` subscribes to `/planner_selector` topic; uses "GridBased" if no message received
+   - `ControllerSelector` subscribes to `/controller_selector` topic; uses "FollowPath" if no message received
+   - Selected IDs written to blackboard variables
+
+3. **ComputePathToPose** action node:
+   - Reads `{selected_planner}` = "GridBased" from blackboard
+   - Sends action goal to `/compute_path_to_pose` with `planner_id = "GridBased"`
+   - **Planner Server** looks up `planners_["GridBased"]` → `NavfnPlanner` instance
+   - NavfnPlanner uses **Dijkstra's algorithm** on global costmap
+   - Returns path to BT node → stored in `{path}` blackboard variable
+
+4. **FollowPath** action node:
+   - Reads `{path}` and `{selected_controller}` = "FollowPath" from blackboard
+   - Sends action goal to `/follow_path` with `controller_id = "FollowPath"`, `goal_checker_id`, etc.
+   - **Controller Server** looks up `controllers_["FollowPath"]` → `MPPIController` instance
+   - MPPI generates velocity commands using local costmap for obstacle avoidance
+   - Commands published to `/cmd_vel`
+
+5. **Recovery** (if navigation fails):
+   - `RecoveryNode` catches failures and retries up to 6 times
+   - `WouldAControllerRecoveryHelp` / `WouldAPlannerRecoveryHelp` check error codes
+   - `RoundRobin` cycles through: ClearCostmaps → Spin → Wait → BackUp
+
+#### Runtime Algorithm Selection
+
+The selector topics allow dynamic algorithm switching without restarting nodes:
+
+| Topic | Message Type | Purpose |
+|-------|--------------|---------|
+| `/controller_selector` | `std_msgs/String` | Switch controller plugin |
+| `/planner_selector` | `std_msgs/String` | Switch planner plugin |
+| `/goal_checker_selector` | `std_msgs/String` | Switch goal checker |
+| `/progress_checker_selector` | `std_msgs/String` | Switch progress checker |
+
+The published string must match a plugin ID defined in `nav2_params.yaml`:
+```bash
+# Example: Switch to a hypothetical "SlowPath" controller
+ros2 topic pub /controller_selector std_msgs/String "data: 'SlowPath'" --once
+```
+
+---
+
+## 7. Getting Started
 
 ### Prerequisites
 
@@ -1088,7 +1745,7 @@ ros2 launch slam_toolbox online_async_launch.py \
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 ### Common Hardware Issues
 

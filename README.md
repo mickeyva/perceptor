@@ -89,8 +89,23 @@ ros2 run rviz2 rviz2 -d src/perceptor/config/main.rviz
 - **[3. Sensor Fusion (EKF)](#3-sensor-fusion-ekf)**
   - [Hardware Components](#hardware-components)
   - [Software Components](#software-components)
+  - [Why Sensor Fusion?](#why-sensor-fusion)
+    - [Wheel Odometry Limitations](#wheel-odometry-limitations)
+    - [IMU Benefits](#imu-benefits)
+    - [Optimal Sensor Combination](#optimal-sensor-combination)
+  - [EKF Theory](#ekf-theory)
+    - [State Vector](#state-vector)
+    - [Prediction Step](#prediction-step)
+    - [Update Step](#update-step)
+    - [Covariance Matrices](#covariance-matrices)
   - [Package Dependencies](#package-dependencies)
   - [EKF Configuration](#ekf-configuration)
+  - [EKF Configuration Deep Dive](#ekf-configuration-deep-dive)
+    - [Frame Configuration](#frame-configuration)
+    - [Sensor Configuration Arrays](#sensor-configuration-arrays)
+    - [Process Noise Covariance](#process-noise-covariance-q)
+    - [Measurement Noise](#measurement-noise-r)
+  - [EKF Troubleshooting](#ekf-troubleshooting)
 
 - **[4. SLAM Mapping](#4-slam-mapping)**
   - [Software Components](#software-components-1)
@@ -714,6 +729,142 @@ flowchart LR
     FUSED --> NAV
 ```
 
+### Why Sensor Fusion?
+
+Reliable odometry is critical for SLAM and navigation. Each sensor has limitations that sensor fusion addresses.
+
+#### Wheel Odometry Limitations
+
+| Problem | Cause | Effect |
+|---------|-------|--------|
+| **Drift** | Accumulated integration errors | Position error grows unboundedly over time |
+| **Wheel Slip** | Smooth floors, acceleration, turning | Encoder counts don't match actual motion |
+| **Encoder Resolution** | Finite tick count per revolution | Quantization noise, especially at low speeds |
+| **No Orientation Rate** | Only position derivatives available | Yaw estimate degrades during fast rotations |
+
+**Typical Drift:** 2-5% of distance traveled (e.g., 0.5-1.25m error per 25m traversed)
+
+#### IMU Benefits
+
+| Data Type | What It Provides | Complementary To |
+|-----------|------------------|------------------|
+| **Angular Velocity (gyro)** | High-rate orientation changes | Wheel odometry yaw (low-rate, noisy) |
+| **Linear Acceleration** | Motion dynamics, gravity reference | Wheel odometry velocity |
+| **High Sample Rate** | 100-400 Hz updates | Encoder polling (typically 10-50 Hz) |
+
+**IMU Limitations:** Gyro bias drift, accelerometer noise, requires calibration
+
+#### Optimal Sensor Combination
+
+The Extended Kalman Filter combines sensors based on their **uncertainty (covariance)**:
+
+```mermaid
+flowchart TB
+    subgraph Sensors["📡 Sensor Inputs"]
+        ODOM["Wheel Odometry<br/>High: position trust<br/>Low: orientation trust"]
+        IMU["IMU<br/>High: angular rate trust<br/>Low: position trust"]
+    end
+    subgraph EKF["🧮 Extended Kalman Filter"]
+        PREDICT["Predict Step<br/>Motion model projection"]
+        UPDATE["Update Step<br/>Sensor correction weighted by covariance"]
+        STATE["State Estimate<br/>[x, y, θ, vx, vy, ωz, ...]"]
+    end
+    subgraph Output["📤 Fused Output"]
+        FUSED["/odometry/filtered<br/>Best estimate from all sensors"]
+    end
+    ODOM -->|"R_odom (covariance)"| UPDATE
+    IMU -->|"R_imu (covariance)"| UPDATE
+    PREDICT --> UPDATE
+    UPDATE --> STATE
+    STATE -->|"next timestep"| PREDICT
+    STATE --> FUSED
+```
+
+**Key Insight:** Sensors with lower covariance (higher certainty) contribute more to the final estimate. The EKF automatically weights each sensor optimally at each timestep.
+
+#### Quantitative Improvement
+
+| Metric | Wheel Odometry Only | EKF Fusion | Improvement |
+|--------|---------------------|------------|-------------|
+| Position drift (25m loop) | 0.5-1.25m | 0.1-0.3m | 70-80% reduction |
+| Yaw stability | ±5-10° over time | ±1-2° | 5× better |
+| Update rate | 10-50 Hz | 30-100 Hz | 2-3× faster |
+| Recovery from slip | Poor | Good | Graceful degradation |
+
+### EKF Theory
+
+> 📖 **Documentation:** [robot_localization README](https://github.com/cra-ros-pkg/robot_localization)
+
+The Extended Kalman Filter (EKF) is the industry-standard algorithm for fusing noisy sensor data in robotics.
+
+#### State Vector
+
+robot_localization uses a **15-dimensional state vector**:
+
+```
+x = [x, y, z, roll, pitch, yaw, ẋ, ẏ, ż, ω_roll, ω_pitch, ω_yaw, ẍ, ÿ, z̈]ᵀ
+     └─ position ─┘  └─ orientation ─┘  └─ velocity ─┘  └─ angular rate ─┘  └─ accel ─┘
+```
+
+| State Variables | Indices | Description |
+|-----------------|---------|-------------|
+| Position | 0-2 | x, y, z in meters |
+| Orientation | 3-5 | roll, pitch, yaw in radians |
+| Linear Velocity | 6-8 | ẋ, ẏ, ż in m/s |
+| Angular Velocity | 9-11 | ω_roll, ω_pitch, ω_yaw in rad/s |
+| Linear Acceleration | 12-14 | ẍ, ÿ, z̈ in m/s² |
+
+**For 2D robots:** Only x, y, yaw, ẋ, ẏ, ω_yaw are typically used (6 active states).
+
+#### Prediction Step
+
+The prediction step propagates the state forward using a **motion model**:
+
+```
+x̂ₖ₍₋₎ = f(x̂ₖ₋₁, uₖ)      # Predicted state (nonlinear motion model)
+Pₖ₍₋₎ = Fₖ Pₖ₋₁ Fₖᵀ + Q   # Predicted covariance
+```
+
+| Symbol | Meaning |
+|--------|---------|
+| `x̂ₖ₍₋₎` | Predicted state at time k (before measurement update) |
+| `f(·)` | Nonlinear motion model (constant velocity, differential drive, etc.) |
+| `Pₖ₍₋₎` | Predicted state covariance (uncertainty) |
+| `Fₖ` | Jacobian of motion model (linearization) |
+| `Q` | **Process noise covariance** (models motion uncertainty) |
+
+**Linearization:** The EKF handles nonlinear motion models by computing the Jacobian `F = ∂f/∂x` at each timestep. This allows linear algebra operations on locally linear approximations.
+
+#### Update Step
+
+When a sensor measurement arrives, the update step **corrects** the prediction:
+
+```
+Kₖ = Pₖ₍₋₎ Hₖᵀ (Hₖ Pₖ₍₋₎ Hₖᵀ + R)⁻¹   # Kalman gain
+x̂ₖ = x̂ₖ₍₋₎ + Kₖ (zₖ - h(x̂ₖ₍₋₎))      # Updated state
+Pₖ = (I - Kₖ Hₖ) Pₖ₍₋₎                 # Updated covariance
+```
+
+| Symbol | Meaning |
+|--------|---------|
+| `Kₖ` | Kalman gain (determines how much to trust measurement) |
+| `zₖ` | Sensor measurement |
+| `h(·)` | Measurement model (maps state to expected measurement) |
+| `Hₖ` | Jacobian of measurement model |
+| `R` | **Measurement noise covariance** (sensor uncertainty) |
+
+**Key Insight:** The Kalman gain `K` automatically balances prediction vs measurement:
+- High `R` (uncertain sensor) → Low `K` → Trust prediction more
+- Low `R` (accurate sensor) → High `K` → Trust measurement more
+
+#### Covariance Matrices
+
+| Matrix | Size | Configured In | Purpose |
+|--------|------|---------------|---------|
+| **P** (State) | 15×15 | `initial_estimate_covariance` | Current uncertainty in state estimate |
+| **Q** (Process) | 15×15 | `process_noise_covariance` | How much state drifts between updates |
+| **R** (Measurement) | varies | Sensor message covariance fields | How noisy each sensor is |
+
 ### Multimedia Placeholders
 - 📊 **[Sensor fusion accuracy comparison]** - Before/after EKF performance metrics
 - 📈 **[EKF state estimation visualization]** - Real-time filter performance plots
@@ -758,29 +909,219 @@ ros2 launch perceptor launch_robot.launch.py enable_imu:=true
 ```yaml
 frequency: 30  # Filter update rate (Hz)
 sensor_timeout: 0.1  # Maximum sensor delay (s)
+two_d_mode: true  # Enable 2D mode for ground robots
 
-# Odometry configuration
+# Sensor topics
 odom0: /odom
-odom0_config: [true,  true,  false,  # x, y, z
-               false, false, true,   # roll, pitch, yaw
-               true,  true,  false,  # vx, vy, vz
-               false, false, true,   # vroll, vpitch, vyaw
-               false, false, false]  # ax, ay, az
-
-# IMU configuration
 imu0: /imu/data
-imu0_config: [false, false, false,  # x, y, z
-              false, false, true,   # roll, pitch, yaw
-              false, false, false,  # vx, vy, vz
-              false, false, true,   # vroll, vpitch, vyaw
-              true,  true,  false]  # ax, ay, az
 ```
 
-**Benefits of Sensor Fusion:**
-- **Improved Accuracy**: Reduced odometry drift over time
-- **Better Orientation**: More stable yaw estimation
-- **Faster Response**: Higher update rate than wheel encoders alone
-- **Robustness**: Continued operation if one sensor fails
+> 📖 See [Sensor Configuration Arrays](#sensor-configuration-arrays) below for detailed `odom0_config` and `imu0_config` explanations.
+
+### EKF Configuration Deep Dive
+
+#### Frame Configuration
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| `odom_frame` | `odom` | Parent frame for odometry output |
+| `base_link_frame` | `base_link` | Robot's body frame |
+| `world_frame` | `odom` | Reference frame for state estimate |
+| `map_frame` | `map` | Map frame (used with map-based localization) |
+
+**Frame Relationship:**
+```
+map → odom → base_link → sensors (imu_link, laser_link, etc.)
+      └─ EKF publishes this transform ─┘
+```
+
+> ⚠️ **Important:** The EKF publishes the `odom → base_link` transform. If another node (like your odometry source) also publishes this transform, set `publish_tf: false` on one of them.
+
+#### Sensor Configuration Arrays
+
+The `odomN_config` and `imuN_config` arrays are **15-element boolean arrays** that specify which state variables to use from each sensor:
+
+```yaml
+# Array indices map to state vector:
+# [x, y, z, roll, pitch, yaw, ẋ, ẏ, ż, ω_roll, ω_pitch, ω_yaw, ẍ, ÿ, z̈]
+#  0  1  2   3     4      5   6  7  8    9       10       11   12 13 14
+```
+
+**Wheel Odometry Configuration Explained:**
+```yaml
+odom0_config: [true,  true,  false,  # Use x, y position (not z for 2D)
+               false, false, true,   # Use yaw only (no roll/pitch for 2D)
+               true,  true,  false,  # Use vx, vy velocity
+               false, false, true,   # Use yaw rate
+               false, false, false]  # Don't use acceleration
+```
+
+**IMU Configuration Explained:**
+```yaml
+imu0_config: [false, false, false,  # IMU doesn't provide position
+              false, false, true,   # Use yaw from magnetometer/gyro integration
+              false, false, false,  # IMU doesn't provide velocity directly
+              false, false, true,   # Use yaw rate from gyroscope
+              true,  true,  false]  # Use x, y acceleration
+```
+
+**Configuration Guidelines:**
+
+| Sensor Type | Typically Use | Don't Use |
+|-------------|---------------|-----------|
+| **Wheel Odometry** | x, y, yaw, vx, vy, vyaw | z, roll, pitch (2D robot) |
+| **IMU** | yaw, vyaw, ax, ay | x, y, z position, vx, vy, vz |
+| **GPS** | x, y (absolute) | velocities, orientation |
+| **Visual Odometry** | x, y, z, roll, pitch, yaw | accelerations |
+
+> 💡 **Rule:** Never fuse the same state variable from multiple sensors that derive it from the same source. For example, don't use both `odom0` velocity AND integrate `imu0` acceleration to get velocity.
+
+#### Process Noise Covariance (Q)
+
+The `process_noise_covariance` parameter is a **15×15 diagonal matrix** that models how much the state drifts between filter updates:
+
+```yaml
+process_noise_covariance: [
+  0.05, 0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,     # x
+  0,    0.05, 0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,     # y
+  0,    0,    0.06, 0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,     # z
+  0,    0,    0,    0.03, 0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,     # roll
+  0,    0,    0,    0,    0.03, 0,    0,     0,     0,    0,    0,    0,    0,    0,    0,     # pitch
+  0,    0,    0,    0,    0,    0.06, 0,     0,     0,    0,    0,    0,    0,    0,    0,     # yaw
+  0,    0,    0,    0,    0,    0,    0.025, 0,     0,    0,    0,    0,    0,    0,    0,     # vx
+  0,    0,    0,    0,    0,    0,    0,     0.025, 0,    0,    0,    0,    0,    0,    0,     # vy
+  0,    0,    0,    0,    0,    0,    0,     0,     0.04, 0,    0,    0,    0,    0,    0,     # vz
+  0,    0,    0,    0,    0,    0,    0,     0,     0,    0.01, 0,    0,    0,    0,    0,     # vroll
+  0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0.01, 0,    0,    0,    0,     # vpitch
+  0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0.02, 0,    0,    0,     # vyaw
+  0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0.01, 0,    0,     # ax
+  0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0.01, 0,     # ay
+  0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0.015  # az
+]
+```
+
+**Tuning Guidelines:**
+- **Higher Q values** → Filter trusts predictions less, responds faster to measurements
+- **Lower Q values** → Filter trusts predictions more, smoother but slower response
+- Start with default values and adjust based on observed behavior
+
+#### Measurement Noise (R)
+
+Measurement noise comes from the sensor message covariance fields (e.g., `Odometry.pose.covariance`, `Imu.orientation_covariance`). If sensors don't provide covariance:
+
+```yaml
+odom0_pose_covariance: [0.1, 0, 0, 0, 0, 0,
+                        0, 0.1, 0, 0, 0, 0,
+                        0, 0, 0.1, 0, 0, 0,
+                        0, 0, 0, 0.1, 0, 0,
+                        0, 0, 0, 0, 0.1, 0,
+                        0, 0, 0, 0, 0, 0.2]  # x, y, z, roll, pitch, yaw
+
+imu0_angular_velocity_covariance: [0.01, 0, 0,
+                                   0, 0.01, 0,
+                                   0, 0, 0.01]
+```
+
+### EKF Troubleshooting
+
+#### Common Issues
+
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| No `/odometry/filtered` output | Sensor timeout or no TF | Check sensor topics are publishing, verify TF tree |
+| Robot "jumps" in RViz | Large covariance mismatch | Tune Q and R matrices, check sensor timestamps |
+| Yaw drifts over time | IMU not fused or misconfigured | Verify `imu0_config` includes yaw rate (index 11) |
+| Filter diverges | Process noise too low | Increase Q diagonal values |
+| Slow response to motion | Measurement noise too high | Decrease R values or sensor covariances |
+
+#### IMU Issues
+
+**IMU Not Publishing:**
+```bash
+# Check IMU topic
+ros2 topic echo /imu/data --once
+
+# Verify IMU node is running
+ros2 node list | grep imu
+
+# Check I2C connection (MPU6050)
+sudo i2cdetect -y 1
+# Should show 0x68
+```
+
+**Wrong IMU Frame:**
+```bash
+# Check IMU message frame_id
+ros2 topic echo /imu/data --field header.frame_id
+
+# Verify transform exists
+ros2 run tf2_ros tf2_echo base_link imu_link
+```
+
+> ⚠️ **Critical:** The EKF requires a valid `base_link → imu_link` transform. If missing, add a static transform:
+> ```bash
+> ros2 run tf2_ros static_transform_publisher 0 0 0.1 0 0 0 base_link imu_link
+> ```
+
+#### TF Tree Problems
+
+**Verify TF Tree:**
+```bash
+# View TF tree
+ros2 run tf2_tools view_frames
+
+# Check specific transform
+ros2 run tf2_ros tf2_echo odom base_link
+
+# Monitor TF at runtime
+ros2 run rqt_tf_tree rqt_tf_tree
+```
+
+**Common TF Errors:**
+- `"Could not find a connection between 'odom' and 'base_link'"` → Missing odometry source or EKF not running
+- `"Transform is too old"` → Timestamp synchronization issue, check `sensor_timeout` parameter
+
+#### Covariance Tuning Process
+
+1. **Start with defaults** from robot_localization package
+2. **Monitor filter health:**
+   ```bash
+   ros2 topic echo /diagnostics | grep -A5 "ekf"
+   ```
+3. **Enable debug output:**
+   ```yaml
+   print_diagnostics: true
+   debug: true
+   debug_out_file: /tmp/ekf_debug.txt
+   ```
+4. **Observe behavior:**
+   - Jumpy output → Increase Q (trust measurements more)
+   - Sluggish response → Decrease R (trust sensors more)
+   - Divergence → Check sensor data quality, increase Q significantly
+
+#### Verification Commands
+
+```bash
+# Check EKF node is running
+ros2 node info /ekf_filter_node
+
+# Monitor output at 10Hz
+ros2 topic hz /odometry/filtered
+
+# Compare raw vs filtered odometry
+ros2 topic echo /odom --field pose.pose.position
+ros2 topic echo /odometry/filtered --field pose.pose.position
+
+# Visualize in RViz
+# Add Odometry display for both /odom and /odometry/filtered
+# Compare trajectory smoothness and drift
+```
+
+**Health Check Indicators:**
+- `/odometry/filtered` publishing at expected frequency (30Hz default)
+- No warnings in `/diagnostics`
+- Smooth trajectory in RViz (no jumps or jitter)
+- Yaw stable when robot is stationary
 
 ---
 

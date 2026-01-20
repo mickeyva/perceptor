@@ -10,7 +10,6 @@
 <img src="docs/media/images/physical/perceptor.jpg" alt="Perceptor Robot - Physical Hardware" width="560"/>
 </td>
 <td>
-xxx
 A comprehensive ROS2 robotics platform for autonomous navigation, SLAM mapping, and sensor fusion using an iRobot Create 2 base with integrated LiDAR sensor. Features include advanced autonomous navigation with keepout zones, variable speed limits, visual waypoint navigation, real-time collision monitoring, and multi-sensor fusion using Extended Kalman Filter (EKF). Designed for educational robotics, research applications, and maker projects with full simulation support and real hardware deployment capabilities.
 
 **Core Capabilities:**

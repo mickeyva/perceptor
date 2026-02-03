@@ -26,7 +26,7 @@
   <depend>joy</depend>
   <depend>teleop_twist_joy</depend>
   <depend>twist_mux</depend>
-  <depend>rplidar_ros</depend>
+  <depend>xv11_lidar_python</depend>
   <depend>ros2_mpu6050</depend>
   <depend>robot_localization</depend>
 

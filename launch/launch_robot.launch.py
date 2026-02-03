@@ -90,7 +90,7 @@ def generate_launch_description():
     enable_lidar_arg = DeclareLaunchArgument(
         'enable_lidar',
         default_value='true',
-        description='Enable RPLidar A1M8 laser scanner'
+        description='Enable xv_11 laser scanner'
     )
 
     enable_camera_arg = DeclareLaunchArgument(
@@ -164,11 +164,10 @@ def generate_launch_description():
     )
 
     # LiDAR Sensor (Optional)
-    # RPLidar A1M8 360-degree laser scanner using official rplidar_ros launch
     # Can be disabled with: enable_lidar:=false
     lidar = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('rplidar_ros'), 'launch', 'rplidar_a1_launch.py'
+            get_package_share_directory('xv11_lidar_python'), 'launch', 'xv11_lidar_launch.py'
         )]),
         condition=IfCondition(LaunchConfiguration('enable_lidar'))
     )

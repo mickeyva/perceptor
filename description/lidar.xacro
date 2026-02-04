@@ -2,9 +2,6 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" >
 
     <xacro:include filename="inertial_macros.xacro"/>
-    <material name="black">
-        <color rgba="0 0 0 0"/>
-    </material>
     <!-- LiDAR mounted at geometric center, 200mm above base_link -->
     <joint name="laser_joint" type="fixed">
         <parent link="base_link"/>

@@ -61,7 +61,7 @@ def generate_launch_description():
     # 360-degree laser scanner for navigation, SLAM, and obstacle avoidance
     rplidar = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory(package_name), 'launch', 'rplidar.launch.py'
+            get_package_share_directory(package_name), 'launch', 'xv11_lidar.launch.py'
         )])
     )
 
